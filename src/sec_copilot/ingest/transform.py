@@ -1,12 +1,18 @@
 """Turn the SEC's raw company-facts JSON into a clean table of quarterly and annual values."""
 import pandas as pd
 
-# Our metric name -> the SEC (us-gaap) tag that holds it. Apple-specific for now.
+# Our metric name -> the SEC (us-gaap) tags that can hold it, best choice first.
+# Companies pick different tags, and some switch tags over the years.
 METRIC_TAGS = {
-    "revenue": "RevenueFromContractWithCustomerExcludingAssessedTax",
-    "gross_profit": "GrossProfit",
-    "operating_income": "OperatingIncomeLoss",
-    "net_income": "NetIncomeLoss",
+    "revenue": [
+        "RevenueFromContractWithCustomerExcludingAssessedTax",
+        "Revenues",
+        "SalesRevenueNet",
+        "RevenueFromContractWithCustomerIncludingAssessedTax",
+    ],
+    "gross_profit": ["GrossProfit"],
+    "operating_income": ["OperatingIncomeLoss"],
+    "net_income": ["NetIncomeLoss", "ProfitLoss"],
 }
 
 # How long a period is, in days (end date minus start date).
@@ -21,15 +27,20 @@ OUTPUT_COLUMNS = [
 
 def raw_facts(raw: dict) -> pd.DataFrame:
     """Flatten the JSON into one row per reported fact, for the metrics we care about."""
-    gaap = raw["facts"]["us-gaap"]
+    gaap = raw.get("facts", {}).get("us-gaap", {})
     pieces = []
-    for metric, tag in METRIC_TAGS.items():
-        if tag not in gaap:
-            continue
-        rows = gaap[tag]["units"].get("USD", [])
-        piece = pd.DataFrame(rows)
-        piece["metric"] = metric
-        pieces.append(piece)
+    for metric, tags in METRIC_TAGS.items():
+        for rank, tag in enumerate(tags):
+            rows = gaap.get(tag, {}).get("units", {}).get("USD", [])
+            if not rows:
+                continue
+            piece = pd.DataFrame(rows)
+            piece["metric"] = metric
+            piece["tag_rank"] = rank   # 0 = our first choice of tag
+            pieces.append(piece)
+
+    if not pieces:
+        return pd.DataFrame()
 
     df = pd.concat(pieces, ignore_index=True)
     df = df[df["form"].isin(["10-K", "10-Q"])].copy()
@@ -44,11 +55,12 @@ def _current_period_rows(df: pd.DataFrame, form: str, day_range: tuple) -> pd.Da
 
     A filing also repeats last year's numbers for comparison. Within one filing,
     the row with the newest end date is the current period, and the rest are comparisons.
+    If two tags report the same period, the higher-priority tag wins.
     """
     low, high = day_range
     sub = df[(df["form"] == form) & df["days"].between(low, high)]
-    newest = sub.groupby(["metric", "accn"])["end"].idxmax()
-    return sub.loc[newest]
+    sub = sub.sort_values(["end", "tag_rank"], ascending=[False, True])
+    return sub.drop_duplicates(["metric", "accn"], keep="first")
 
 
 def _derive_q4(df: pd.DataFrame) -> pd.DataFrame:
@@ -80,6 +92,8 @@ def _derive_q4(df: pd.DataFrame) -> pd.DataFrame:
 def facts_to_frame(raw: dict) -> pd.DataFrame:
     """Raw SEC JSON in, clean table out: one row per metric per fiscal quarter (and year)."""
     df = raw_facts(raw)
+    if df.empty:
+        return pd.DataFrame(columns=OUTPUT_COLUMNS)
 
     quarters = _current_period_rows(df, "10-Q", QUARTER_DAYS)
     years = _current_period_rows(df, "10-K", YEAR_DAYS)
@@ -92,6 +106,7 @@ def facts_to_frame(raw: dict) -> pd.DataFrame:
     clean["unit"] = "USD"
     clean["is_derived"] = False
     clean = clean[OUTPUT_COLUMNS]
+
     # Rows without a fiscal label can't be placed in a quarter, so drop them.
     clean = clean.dropna(subset=["fiscal_year", "fiscal_period"])
     clean["fiscal_year"] = clean["fiscal_year"].astype(int)

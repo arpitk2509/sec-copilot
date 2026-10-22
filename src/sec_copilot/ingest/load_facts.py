@@ -2,11 +2,12 @@
 from sqlalchemy import create_engine, text
 
 from sec_copilot.config import DATABASE_URL
-from sec_copilot.ingest.edgar import fetch_company_facts
+from sec_copilot.ingest.edgar import fetch_company_facts, resolve_tickers
 from sec_copilot.ingest.transform import facts_to_frame
 
-COMPANIES = [
-    {"cik": 320193, "ticker": "AAPL", "name": "Apple Inc.", "sector": "Technology"},
+TICKERS = [
+    "AAPL", "MSFT", "NVDA", "INTC", "AMD", "CSCO", "CRM", "ADBE",
+    "IBM", "TXN", "MU", "AVGO", "NOW", "INTU", "AMAT",
 ]
 
 # "Upsert": insert a new row, or update it if it already exists.
@@ -38,8 +39,10 @@ def load_company(engine, company: dict) -> int:
     """Fetch, clean, and store one company's facts. Returns the number of rows loaded."""
     raw = fetch_company_facts(company["cik"])
     facts = facts_to_frame(raw)
-    records = facts.assign(cik=company["cik"]).to_dict("records")
+    if facts.empty:
+        return 0
 
+    records = facts.assign(cik=company["cik"]).to_dict("records")
     with engine.begin() as conn:  # one transaction: every row loads, or none do
         conn.execute(UPSERT_COMPANY, company)
         conn.execute(UPSERT_FACT, records)
@@ -48,9 +51,18 @@ def load_company(engine, company: dict) -> int:
 
 def main() -> None:
     engine = create_engine(DATABASE_URL)
-    for company in COMPANIES:
-        count = load_company(engine, company)
-        print(f"{company['ticker']}: loaded {count} rows")
+    failures = []
+    for company in resolve_tickers(TICKERS):
+        try:
+            count = load_company(engine, company)
+        except Exception as error:  # keep going: one bad company shouldn't stop the rest
+            failures.append(company["ticker"])
+            print(f"{company['ticker']}: FAILED ({error})")
+            continue
+        print(f"{company['ticker']}: loaded {count} rows" if count else f"{company['ticker']}: no usable facts, skipped")
+
+    if failures:
+        print(f"\nFailed: {', '.join(failures)}")
 
 
 if __name__ == "__main__":
