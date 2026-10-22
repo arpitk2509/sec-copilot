@@ -92,6 +92,9 @@ def facts_to_frame(raw: dict) -> pd.DataFrame:
     clean["unit"] = "USD"
     clean["is_derived"] = False
     clean = clean[OUTPUT_COLUMNS]
+    # Rows without a fiscal label can't be placed in a quarter, so drop them.
+    clean = clean.dropna(subset=["fiscal_year", "fiscal_period"])
+    clean["fiscal_year"] = clean["fiscal_year"].astype(int)
 
     # If a period somehow appears twice, keep the most recent one.
     clean = clean.sort_values("period_end").drop_duplicates(
