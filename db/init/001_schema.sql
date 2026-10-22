@@ -18,18 +18,20 @@ CREATE TABLE filings (
     source_url   TEXT
 );
 
--- The numbers: one row per metric per period (revenue, net income, ...)
+-- The numbers: one row per metric per fiscal period (revenue, net income, ...)
 CREATE TABLE financial_facts (
     id            BIGSERIAL PRIMARY KEY,
     cik           INTEGER NOT NULL REFERENCES companies(cik),
     metric        TEXT NOT NULL,
     period_start  DATE,
     period_end    DATE NOT NULL,
-    fiscal_year   INTEGER,
-    fiscal_period TEXT,               -- 'Q1', 'Q2', 'Q3', 'FY'
+    fiscal_year   INTEGER NOT NULL,
+    fiscal_period TEXT NOT NULL,      -- 'Q1', 'Q2', 'Q3', 'Q4', 'FY'
     value         NUMERIC NOT NULL,
     unit          TEXT NOT NULL DEFAULT 'USD',
-    accession_no  TEXT
+    accession_no  TEXT,
+    is_derived    BOOLEAN NOT NULL DEFAULT FALSE,   -- TRUE for Q4, which is computed, not reported
+    UNIQUE (cik, metric, fiscal_year, fiscal_period)
 );
 
 -- The text: one row per chunk of a filing section
