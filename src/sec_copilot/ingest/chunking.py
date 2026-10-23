@@ -26,9 +26,9 @@ def _normalize(line: str) -> str:
 
 def _looks_like_furniture(line: str, normalized: str) -> bool:
     return (
-        "10-k" in line.lower()
+        "form 10-k" in line.lower()
         or normalized == "table of contents"
-        or re.fullmatch(r"\W*(page\s*)?#(\s*of\s*#)?\W*", normalized) is not None
+        or re.fullmatch(r"[\s\-–—|]*(page\s*)?#(\s*of\s*#)?[\s\-–—|]*", normalized) is not None
     )
 
 

@@ -87,3 +87,17 @@ def test_furniture_is_found_across_the_whole_document_even_if_a_section_has_few_
     records = build_chunks({"ticker": "X", "cik": 1}, {"accession_no": "a", "period_end": "2025-12-31"},
                            {"Item 1A": section}, furniture)
     assert "10-K" not in records[0]["content"]
+
+
+
+def test_exhibit_numbers_footnote_markers_and_exhibit_rows_are_not_furniture():
+    text = "\n".join(["4.17", "4.30", "4.31", "(1)", "(2)", "(3)",
+                      "10-K 3.1 8/7/20", "10-K 3.2 9/1/21", "10-K 4.5 1/2/22"])
+    assert find_page_furniture(text) == set()
+
+
+def test_page_number_styles_are_still_removed():
+    text = "\n".join(["Text.", "- 12 -", "More text.", "- 13 -", "Even more.", "- 14 -",
+                      "Page 1 of 90", "Page 2 of 90", "Page 3 of 90", "End."])
+    cleaned = strip_page_furniture(text, find_page_furniture(text))
+    assert cleaned.splitlines() == ["Text.", "More text.", "Even more.", "End."]
