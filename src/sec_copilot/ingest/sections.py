@@ -37,6 +37,7 @@ CELL_TAGS = ["td", "th"]
 
 def html_to_text(html: str) -> str:
     """Turn filing HTML into plain text where every paragraph, heading, or table row is its own line."""
+    html = re.sub(r"^\s*<\?xml[^>]*\?>", "", html)  # inline-XBRL files start with an XML declaration
     html = re.sub(r"\s+", " ", html)  # line breaks in the HTML source are just spaces
     soup = BeautifulSoup(html, "lxml")
     for tag in soup(["script", "style"]):

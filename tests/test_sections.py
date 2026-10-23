@@ -111,3 +111,14 @@ def test_line_breaks_in_html_source_do_not_become_headings():
     lines = risk.splitlines()
     assert lines[0].startswith("Item 1A. Risk Factors")
     assert lines[1].startswith("RISKFACTORS_START")
+
+
+
+def test_xml_declaration_at_start_does_not_warn():
+    import warnings
+
+    html = '<?xml version="1.0" encoding="utf-8"?>' + make_filing(plain_heading)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        text = html_to_text(html)
+    assert extract_section(text, "Item 1A") is not None

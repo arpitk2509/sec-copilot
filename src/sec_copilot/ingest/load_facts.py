@@ -38,7 +38,7 @@ UPSERT_FACT = text("""
 def load_company(engine, company: dict) -> int:
     """Fetch, clean, and store one company's facts. Returns the number of rows loaded."""
     raw = fetch_company_facts(company["cik"])
-    facts = facts_to_frame(raw)
+    facts = facts_to_frame(raw, label=company["ticker"])
     if facts.empty:
         return 0
 
