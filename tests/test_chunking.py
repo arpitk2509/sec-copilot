@@ -109,3 +109,25 @@ def test_pipe_style_footers_without_the_word_form_are_removed():
                       "Even more.", "33 | 2026 10-K", "End."])
     cleaned = strip_page_furniture(text, find_page_furniture(text))
     assert cleaned.splitlines() == ["Risk text.", "More risk text.", "Even more.", "End."]
+
+
+
+def test_running_headers_without_numbers_are_removed_but_data_rows_and_rare_lines_stay():
+    text = "\n".join(
+        ["Real paragraph one."]
+        + ["PART II", "CISCO SYSTEMS, INC."] * 8                     # repeated 8 times, no numbers: removed
+        + ["Risk Factors Summary"] * 7                                 # only 7 times: kept
+        + ["Total revenue $ 100 $ 90", "Total revenue $ 120 $ 80"] * 5   # data rows with numbers: kept
+        + ["Real paragraph two."]
+    )
+    cleaned = strip_page_furniture(text, find_page_furniture(text)).splitlines()
+    assert "PART II" not in cleaned and "CISCO SYSTEMS, INC." not in cleaned
+    assert cleaned.count("Risk Factors Summary") == 7
+    assert cleaned.count("Total revenue $ 100 $ 90") == 5
+    assert cleaned[0] == "Real paragraph one." and cleaned[-1] == "Real paragraph two."
+
+
+def test_annual_report_footers_with_page_numbers_are_removed():
+    text = "\n".join(["Text.", "2025 Annual Report 23", "More.", "2025 Annual Report 24", "Even more.",
+                      "2025 Annual Report 25", "End."])
+    assert strip_page_furniture(text, find_page_furniture(text)).splitlines() == ["Text.", "More.", "Even more.", "End."]

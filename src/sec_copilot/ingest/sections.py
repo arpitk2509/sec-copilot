@@ -38,7 +38,10 @@ def html_to_text(html: str) -> str:
     for tag in soup.find_all("ix:header"):  # hidden XBRL data at the top of the file
         tag.decompose()
     for tag in soup.find_all(BLOCK_TAGS):
-        tag.append("\n")
+        # Inside a table cell, paragraphs must NOT start new lines, or every number lands on its own line.
+        # Only the end of a table row (or a table) breaks the line.
+        inside_cell = tag.name not in ("tr", "table") and tag.find_parent(CELL_TAGS) is not None
+        tag.append(" " if inside_cell else "\n")
     for tag in soup.find_all(CELL_TAGS):
         tag.append(" ")
 

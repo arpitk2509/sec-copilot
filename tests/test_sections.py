@@ -140,3 +140,16 @@ def test_section_ends_at_item_8_when_there_is_no_item_7a():
     <p>Item 8. Consolidated Financial Statements and Supplementary Data</p><p>Balance sheet.</p></body></html>"""
     mda = extract_section(html_to_text(html), "Item 7")
     assert mda is not None and "MDA_END" in mda and "Balance sheet" not in mda
+
+
+
+def test_table_cells_with_paragraphs_stay_on_one_line_per_row():
+    """Some filings put every number in its own <div> inside a cell. A row must still be one line."""
+    html = """<html><body><table>
+      <tr><td><div>Revenue</div></td><td><div>$</div></td><td><div>101,832</div></td><td><div>$</div></td><td><div>90,000</div></td></tr>
+      <tr><td><p>Net income</p></td><td><p>$</p></td><td><p>(1,646</p></td><td><p>)</p></td></tr>
+    </table><p>A normal paragraph.</p></body></html>"""
+    lines = html_to_text(html).splitlines()
+    assert lines[0] == "Revenue $ 101,832 $ 90,000"
+    assert lines[1] == "Net income $ (1,646 )"
+    assert lines[2] == "A normal paragraph."

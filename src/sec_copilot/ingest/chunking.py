@@ -16,6 +16,7 @@ OVERLAP_CHARS = 200   # the end of one chunk is repeated at the start of the nex
 # Page headers and footers repeat on every page. We only delete short lines that repeat
 # and look like page furniture, so real content (and repeated table rows) stays.
 REPEAT_THRESHOLD = 3
+REPEATED_HEADER_THRESHOLD = 8   # a digit-free short line repeated this often is a running header, not content
 MAX_FURNITURE_LENGTH = 100
 
 
@@ -29,21 +30,26 @@ def _looks_like_furniture(line: str, normalized: str) -> bool:
     return (
         "form 10-k" in lowered
         or ("10-k" in lowered and "|" in lowered)
+        or ("annual report" in lowered and "#" in normalized)   # e.g. "2025 Annual Report 23"
         or normalized == "table of contents"
         or re.fullmatch(r"[\s\-–—|]*(page\s*)?#(\s*of\s*#)?[\s\-–—|]*", normalized) is not None
     )
 
 
+def _is_running_header(normalized: str, count: int) -> bool:
+    """A short line with no numbers repeated many times: 'PART II', 'CISCO SYSTEMS, INC.', '... (Continued)'."""
+    return count >= REPEATED_HEADER_THRESHOLD and "#" not in normalized
+
+
 def find_page_furniture(text: str) -> set[str]:
     """Find page headers/footers in the WHOLE document: short, repeated lines that look like furniture."""
-    lines = [line for line in text.splitlines() if line.strip()]
+    lines = [line for line in text.splitlines() if line.strip() and len(line) <= MAX_FURNITURE_LENGTH]
     counts = Counter(_normalize(line) for line in lines)
     return {
         _normalize(line)
         for line in lines
-        if counts[_normalize(line)] >= REPEAT_THRESHOLD
-        and len(line) <= MAX_FURNITURE_LENGTH
-        and _looks_like_furniture(line, _normalize(line))
+        if (counts[_normalize(line)] >= REPEAT_THRESHOLD and _looks_like_furniture(line, _normalize(line)))
+        or _is_running_header(_normalize(line), counts[_normalize(line)])
     }
 
 
