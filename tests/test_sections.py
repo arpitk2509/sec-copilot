@@ -122,3 +122,21 @@ def test_xml_declaration_at_start_does_not_warn():
         warnings.simplefilter("error")
         text = html_to_text(html)
     assert extract_section(text, "Item 1A") is not None
+
+
+
+def test_end_heading_wording_can_differ():
+    """Some filings say 'Qualitative and Quantitative' instead of the usual order."""
+    html = f"""<html><body>
+    <p>Item 7. Management's Discussion and Analysis</p><p>MDA_START {FILLER}</p><p>MDA_END</p>
+    <p>Item 7A. Qualitative and Quantitative Disclosures About Market Risk</p><p>Interest rate risk.</p></body></html>"""
+    mda = extract_section(html_to_text(html), "Item 7")
+    assert mda is not None and "MDA_END" in mda and "Interest rate risk" not in mda
+
+
+def test_section_ends_at_item_8_when_there_is_no_item_7a():
+    html = f"""<html><body>
+    <p>Item 7. Management's Discussion and Analysis</p><p>MDA_START {FILLER}</p><p>MDA_END</p>
+    <p>Item 8. Consolidated Financial Statements and Supplementary Data</p><p>Balance sheet.</p></body></html>"""
+    mda = extract_section(html_to_text(html), "Item 7")
+    assert mda is not None and "MDA_END" in mda and "Balance sheet" not in mda

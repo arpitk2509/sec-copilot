@@ -101,3 +101,11 @@ def test_page_number_styles_are_still_removed():
                       "Page 1 of 90", "Page 2 of 90", "Page 3 of 90", "End."])
     cleaned = strip_page_furniture(text, find_page_furniture(text))
     assert cleaned.splitlines() == ["Text.", "More text.", "Even more.", "End."]
+
+
+
+def test_pipe_style_footers_without_the_word_form_are_removed():
+    text = "\n".join(["Risk text.", "31 | 2026 10-K", "More risk text.", "32 | 2026 10-K",
+                      "Even more.", "33 | 2026 10-K", "End."])
+    cleaned = strip_page_furniture(text, find_page_furniture(text))
+    assert cleaned.splitlines() == ["Risk text.", "More risk text.", "Even more.", "End."]

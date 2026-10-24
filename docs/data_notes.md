@@ -11,3 +11,6 @@
 - **Short history:** Broadcom starts in 2018 (current registrant), ServiceNow in 2012 (IPO).
 - **Validation:** derived Q4 revenue and growth for Micron matched its earnings release; data-quality SQL checks
   live in `db/queries/`.
+  - **Documents not loaded:** Intel's 10-K doesn't use standard "Item 1A / Item 7" headings in its body (the Item mapping
+  is a page-number index at the end), so neither section is extracted. IBM's MD&A is incorporated by reference to its
+  annual report, so only its Risk Factors are loaded. Both are handled by returning "not found" rather than storing junk.

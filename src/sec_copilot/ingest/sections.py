@@ -13,18 +13,11 @@ SEPARATOR = r"[\.\s:\-–—]*"
 SECTION_RULES = {
     "Item 1A": {
         "start": rf"item\s*1a{SEPARATOR}risk\s*factors",
-        "end": [
-            rf"item\s*1b{SEPARATOR}unresolved",
-            rf"item\s*1c{SEPARATOR}cybersecurity",
-            rf"item\s*2{SEPARATOR}properties",
-        ],
+        "end": [r"item\s*1b\b", r"item\s*1c\b", r"item\s*2\b"],
     },
     "Item 7": {
         "start": rf"item\s*7{SEPARATOR}management",
-        "end": [
-            rf"item\s*7a{SEPARATOR}quantitative",
-            rf"item\s*8{SEPARATOR}financial\s*statements",
-        ],
+        "end": [r"item\s*7a\b", r"item\s*8\b"],
     },
 }
 
