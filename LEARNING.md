@@ -17,3 +17,6 @@ HTML source line breaks are not real line breaks.
 Why headings are matched only at the start of a line.
 The table of contents has the same headings as the real section, so we keep the longest span.
 My tests caught a bug before real data did.
+
+Pasting several docker compose exec commands together can swallow the next one, so use -T for one-shot queries.
+Why failures like IBM’s and Intel’s are reported openly (NOT FOUND) instead of hidden.
