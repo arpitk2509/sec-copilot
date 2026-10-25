@@ -22,3 +22,6 @@ Why failures like IBM’s and Intel’s are reported openly (NOT FOUND) instead 
 Real filings vary in ways synthetic tests can’t predict, so scaling from 1 company to 15 exposed three problems.
 Why regex patterns should be as loose as the data allows on the end markers and as strict as needed on the start markers.
 Why you check results by querying the stored data, not just by reading the code.
+Two sources of noise showed up only after running on 15 companies.
+Why we check what’s stored, not just what the code says.
+Why the “repeated header” rule only applies to lines without numbers, so real data rows are safe.
