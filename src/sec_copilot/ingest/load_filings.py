@@ -25,7 +25,11 @@ UPSERT_CHUNK = text("""
     INSERT INTO doc_chunks (accession_no, cik, section, fiscal_year, chunk_index, content)
     VALUES (:accession_no, :cik, :section, :fiscal_year, :chunk_index, :content)
     ON CONFLICT (accession_no, section, chunk_index) DO UPDATE
-    SET fiscal_year = EXCLUDED.fiscal_year, content = EXCLUDED.content
+    SET fiscal_year = EXCLUDED.fiscal_year,
+        content = EXCLUDED.content,
+        -- keep the vector if the text is unchanged; otherwise clear it so it gets re-embedded
+        embedding = CASE WHEN doc_chunks.content = EXCLUDED.content THEN doc_chunks.embedding END,
+        embedding_model = CASE WHEN doc_chunks.content = EXCLUDED.content THEN doc_chunks.embedding_model END
 """)
 
 # If a section now has fewer chunks than last time, remove the leftover ones at the end.

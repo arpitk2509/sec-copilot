@@ -37,8 +37,13 @@ def _looks_like_furniture(line: str, normalized: str) -> bool:
 
 
 def _is_running_header(normalized: str, count: int) -> bool:
-    """A short line with no numbers repeated many times: 'PART II', 'CISCO SYSTEMS, INC.', '... (Continued)'."""
-    return count >= REPEATED_HEADER_THRESHOLD and "#" not in normalized
+    """A short line repeated many times: 'PART II', 'CISCO SYSTEMS, INC.', 'Item 7', '... (Continued)'.
+
+    Lines with numbers are normally real data, so only a bare 'Item 7' / 'Item 1A' style line is allowed.
+    """
+    return count >= REPEATED_HEADER_THRESHOLD and (
+        "#" not in normalized or re.fullmatch(r"item\s*#[a-c]?\.?", normalized) is not None
+    )
 
 
 def find_page_furniture(text: str) -> set[str]:

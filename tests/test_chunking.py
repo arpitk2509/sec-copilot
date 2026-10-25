@@ -131,3 +131,10 @@ def test_annual_report_footers_with_page_numbers_are_removed():
     text = "\n".join(["Text.", "2025 Annual Report 23", "More.", "2025 Annual Report 24", "Even more.",
                       "2025 Annual Report 25", "End."])
     assert strip_page_furniture(text, find_page_furniture(text)).splitlines() == ["Text.", "More.", "Even more.", "End."]
+
+
+
+def test_bare_item_headers_repeated_on_every_page_are_removed_but_real_headings_stay():
+    text = "\n".join(["Item 1A. Risk Factors", "Real text."] + ["Item 7", "Item 1A"] * 8 + ["Item 7. Management's Discussion"])
+    cleaned = strip_page_furniture(text, find_page_furniture(text)).splitlines()
+    assert cleaned == ["Item 1A. Risk Factors", "Real text.", "Item 7. Management's Discussion"]
