@@ -25,3 +25,7 @@ Why you check results by querying the stored data, not just by reading the code.
 Two sources of noise showed up only after running on 15 companies.
 Why we check what’s stored, not just what the code says.
 Why the “repeated header” rule only applies to lines without numbers, so real data rows are safe.
+The free-tier limit counts texts, not requests, so we found it by hitting it.
+Why the job stops cleanly and saves each batch, and why you only re-run it after the reset.
+Why hybrid search fuses ranks instead of scores.
+Why exact-word search and meaning-based search fail on different questions.
