@@ -206,3 +206,10 @@ def test_citation_check_separates_real_cited_and_invented_tags():
     cited, invented = check_citations("Revenue rose [Q1]. Risks exist [C2][C9]. Again [Q1].", sources)
     assert list(cited) == ["Q1", "C2"] and invented == ["C9"]
     assert check_citations("No sources here.", sources) == ({}, [])
+
+
+
+def test_citation_check_understands_several_tags_in_one_bracket():
+    sources = {"Q1": {}, "C1": {}, "C4": {}, "C5": {}}
+    cited, invented = check_citations("Demand is strong [C1, C4]. Revenue grew [Q1][C5]. Odd [C9; C1] and [C].", sources)
+    assert list(cited) == ["C1", "C4", "Q1", "C5"] and invented == ["C9"]

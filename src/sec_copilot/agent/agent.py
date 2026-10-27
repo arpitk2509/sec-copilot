@@ -8,8 +8,8 @@ from sec_copilot.agent.prompts import FINAL_ANSWER_NOTICE, SYSTEM_PROMPT
 from sec_copilot.agent.toolbox import TOOL_DECLARATIONS
 
 MAX_MODEL_CALLS = 4   # keeps one question within about 4 of the 500 free calls per day
-CITATION_TAG = re.compile(r"\[([QC]\d+)\]")
-
+CITATION_BRACKET = re.compile(r"\[([QC]\d+(?:\s*[,;]\s*[QC]\d+)*)\]")   # [C1] or [C1, C4]
+CITATION_TAG = re.compile(r"[QC]\d+")
 
 @dataclass
 class AgentResult:
@@ -22,7 +22,9 @@ class AgentResult:
 
 def check_citations(answer: str, sources: dict[str, dict]) -> tuple[dict[str, dict], list[str]]:
     """Which sources does the answer actually cite, and which tags did it make up?"""
-    tags = list(dict.fromkeys(CITATION_TAG.findall(answer)))     # unique, in order of first use
+    tags = list(dict.fromkeys(
+        tag for group in CITATION_BRACKET.findall(answer) for tag in CITATION_TAG.findall(group)
+    ))                                                           # unique, in order of first use
     cited = {tag: sources[tag] for tag in tags if tag in sources}
     invented = [tag for tag in tags if tag not in sources]
     return cited, invented

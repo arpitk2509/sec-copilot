@@ -2,6 +2,7 @@
 import os
 import time
 
+import httpx
 from google import genai
 from google.genai import errors, types
 
@@ -10,6 +11,7 @@ from sec_copilot import config  # noqa: F401  (importing it loads your .env file
 DEFAULT_MODEL = "gemini-2.5-flash"
 MIN_SECONDS_BETWEEN_CALLS = 6.0   # free tiers allow only a handful of requests per minute
 MAX_ATTEMPTS = 3
+HTTP_TIMEOUT_MS = 90_000      # give up on a request that hangs for 90 seconds
 RETRY_WAIT_SECONDS = 20           # waits 20s, then 40s
 
 
@@ -26,7 +28,7 @@ def make_client(api_key: str | None = None):
     api_key = api_key or os.environ.get("LLM_API_KEY")
     if not api_key:
         raise RuntimeError("Set LLM_API_KEY in your .env file (a Google AI Studio key).")
-    return genai.Client(api_key=api_key)
+    return genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=HTTP_TIMEOUT_MS))
 
 
 class Gemini:
@@ -53,11 +55,13 @@ class Gemini:
                 response = self._client.models.generate_content(model=self.model, contents=contents, config=config)
                 self.calls_made += 1
                 return response
-            except errors.APIError as error:
-                if error.code not in (429, 500, 503):
-                    raise                                              # bad key, unknown model, bad request: don't retry
+            except (errors.APIError, httpx.TransportError) as error:
+                # Retry quota/overload errors and dropped connections. Anything else (bad key, bad model) is a real mistake.
+                if isinstance(error, errors.APIError) and error.code not in (429, 500, 503):
+                    raise
                 if attempt == MAX_ATTEMPTS:
-                    raise LLMUnavailable(f"API error {error.code} after {MAX_ATTEMPTS} attempts") from error
+                    what = f"API error {error.code}" if isinstance(error, errors.APIError) else type(error).__name__
+                    raise LLMUnavailable(f"{what} after {MAX_ATTEMPTS} attempts") from error
                 self._sleep(RETRY_WAIT_SECONDS * attempt)
 
     def _pace(self):

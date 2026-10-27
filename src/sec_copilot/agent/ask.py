@@ -34,8 +34,7 @@ def main() -> None:
     try:
         result = answer_question(args.question, gemini, toolbox, log=lambda message: print(f"  tool -> {message}"))
     except LLMUnavailable as error:
-        raise SystemExit(f"The model is unavailable: {error}. Daily limits reset at midnight Pacific time.") from error
-
+        raise SystemExit(f"The model is unavailable: {error}. Try again in a few minutes. (Daily limits reset at midnight Pacific time.)") from error
     cited, invented = check_citations(result.answer, result.sources)
     print(f"\n{result.answer}")
     print(f"\n--- {result.model_calls} model calls, {len(result.tool_calls)} tool calls"

@@ -1,6 +1,7 @@
 import math
 from types import SimpleNamespace
 
+import httpx
 import pytest
 from google.genai import errors
 
@@ -94,3 +95,11 @@ def test_wrong_vector_size_is_rejected():
 
 def test_token_estimate_is_pessimistic():
     assert estimate_tokens(["x" * 3200]) == 1000
+
+
+
+def test_a_dropped_connection_is_retried_like_a_rate_limit():
+    waits = []
+    client = FakeClient([httpx.RemoteProtocolError("Server disconnected without sending a response."), "ok"])
+    assert len(GeminiEmbedder(client=client, sleep=waits.append).embed_documents(["a"])) == 1
+    assert waits == [30]

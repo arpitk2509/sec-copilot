@@ -1,3 +1,4 @@
+import httpx
 import pytest
 from google.genai import errors, types
 
@@ -105,3 +106,17 @@ def test_smoke_test_reports_when_the_model_ignores_the_tool():
     logs = []
     assert run(gemini, log=logs.append) is False
     assert any("did NOT ask" in line for line in logs)
+
+
+
+def test_a_dropped_connection_is_retried_then_succeeds():
+    gemini, clock = make([httpx.RemoteProtocolError("Server disconnected without sending a response."), text_reply("ok")])
+    assert gemini.generate("x").text == "ok"
+    assert 20 in clock.sleeps
+
+
+def test_repeated_dropped_connections_end_as_llm_unavailable():
+    gemini, _ = make([httpx.ReadTimeout("slow")] * MAX_ATTEMPTS)
+    with pytest.raises(LLMUnavailable) as caught:
+        gemini.generate("x")
+    assert "ReadTimeout" in str(caught.value)

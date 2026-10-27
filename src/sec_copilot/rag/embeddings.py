@@ -3,6 +3,7 @@ import math
 import os
 import time
 
+import httpx
 from google import genai
 from google.genai import errors, types
 
@@ -34,7 +35,7 @@ class GeminiEmbedder:
             api_key = api_key or os.environ.get("LLM_API_KEY")
             if not api_key:
                 raise RuntimeError("Set LLM_API_KEY in your .env file (a Google AI Studio key).")
-            client = genai.Client(api_key=api_key)
+                client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=90_000))
         self._client = client
         self._sleep = sleep
 
@@ -47,11 +48,12 @@ class GeminiEmbedder:
                     model=EMBEDDING_MODEL, contents=texts, config=config
                 )
                 break
-            except errors.APIError as error:
-                if error.code not in (429, 500, 503):
+            except (errors.APIError, httpx.TransportError) as error:
+                if isinstance(error, errors.APIError) and error.code not in (429, 500, 503):
                     raise                                   # a real mistake (bad key, bad request): don't retry
                 if attempt == MAX_ATTEMPTS:
-                    raise QuotaExceeded(f"API error {error.code} after {MAX_ATTEMPTS} attempts") from error
+                    what = f"API error {error.code}" if isinstance(error, errors.APIError) else type(error).__name__
+                    raise QuotaExceeded(f"{what} after {MAX_ATTEMPTS} attempts") from error
                 self._sleep(RETRY_WAIT_SECONDS * attempt)
 
         vectors = [normalize(list(e.values)) for e in response.embeddings]
