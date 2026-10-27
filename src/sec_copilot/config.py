@@ -4,6 +4,10 @@ from dotenv import load_dotenv
 
 load_dotenv()  # reads your private .env file from the project root
 
+READONLY_DATABASE_URL = os.getenv(
+    "READONLY_DATABASE_URL",
+    "postgresql+psycopg://copilot_readonly:readonly@localhost:5433/sec_copilot",
+)
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql+psycopg://postgres:postgres@localhost:5433/sec_copilot",
