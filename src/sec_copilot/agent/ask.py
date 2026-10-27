@@ -5,6 +5,7 @@ from sqlalchemy import create_engine
 
 from sec_copilot.agent.agent import answer_question, check_citations
 from sec_copilot.agent.toolbox import Toolbox
+from sec_copilot.agent.verify import unsupported_numbers
 from sec_copilot.config import DATABASE_URL, READONLY_DATABASE_URL
 from sec_copilot.llm.client import Gemini, LLMUnavailable
 from sec_copilot.rag.embeddings import GeminiEmbedder
@@ -43,6 +44,9 @@ def main() -> None:
         print(f"WARNING: the answer cites tags that do not exist: {invented}")
     if result.tool_calls and not cited:
         print("WARNING: tools were used but the answer cites no sources.")
+    unsupported = unsupported_numbers(result.answer, result.sources)
+    if unsupported:
+        print(f"WARNING: these numbers do not appear in any source the model saw: {unsupported}")
     show_sources(cited)
     unused = len(result.sources) - len(cited)
     if unused:
