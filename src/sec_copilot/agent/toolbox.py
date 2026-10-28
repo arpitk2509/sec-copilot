@@ -91,6 +91,14 @@ class Toolbox:
         return {"citation": tag, "columns": result["columns"], "rows": shown,
                 "row_count": len(rows), "truncated": len(rows) > len(shown)}
 
+    def _find(self, query: str, filters: dict):
+        """Hybrid search, falling back to keywords if the embedding quota is used up. Returns (hits, note)."""
+        try:
+            return hybrid_search(self.engine, self.embedder, query, k=SEARCH_RESULTS, **filters), None
+        except QuotaExceeded:
+            note = "Meaning-based search is unavailable right now (quota), so these come from keyword search only."
+            return keyword_search(self.engine, query, SEARCH_RESULTS, **filters), note
+
     def _search_filings(self, args: dict) -> dict:
         query = str(args.get("query", "")).strip()
         if not query:
@@ -102,12 +110,16 @@ class Toolbox:
         year = int(args["fiscal_year"]) if args.get("fiscal_year") else None
         filters = {"ticker": ticker, "fiscal_year": year, "section": section}
 
-        note = None
-        try:
-            hits = hybrid_search(self.engine, self.embedder, query, k=SEARCH_RESULTS, **filters)
-        except QuotaExceeded:
-            hits = keyword_search(self.engine, query, SEARCH_RESULTS, **filters)
-            note = "Meaning-based search is unavailable right now (quota), so these come from keyword search only."
+        hits, note = self._find(query, filters)
+        dropped = []
+        for name in ("fiscal_year", "section"):      # filters a model may have guessed wrong; never relax the ticker
+            if hits or filters[name] is None:
+                continue
+            filters = {**filters, name: None}
+            dropped.append(name)
+            hits, note = self._find(query, filters)
+        if hits and dropped:
+            note = f"Nothing matched with the {' and '.join(dropped)} filter, so it was ignored. " + (note or "")
 
         results = []
         for hit in hits:

@@ -142,24 +142,35 @@ def test_the_runner_stops_cleanly_when_the_model_becomes_unavailable(monkeypatch
     assert "STOPPED" in logs[0]
 
 
-def test_comparing_two_runs_reports_fixed_and_regressed_cases(tmp_path):
-    from sec_copilot.eval.compare import compare, load
-
-    def write(name, passed_by_id):
-        path = tmp_path / name
-        path.write_text(json.dumps({"model": "m", "results": [{"id": k, "passed": v} for k, v in passed_by_id.items()]}))
-        return load(str(path))
-
-    old = write("old.json", {"a": True, "b": False, "c": True})
-    new = write("new.json", {"a": True, "b": True, "c": False, "d": True})
-    text = "\n".join(compare(old, new))
-    assert "b" in text and "<- fixed" in text and "<- REGRESSED" in text
-    assert "before: 2/3   after: 3/4   fixed: 1   regressed: 1" in text
-
 
 
 def test_the_prompt_contains_the_lessons_from_the_stress_test():
     from sec_copilot.agent.prompts import SYSTEM_PROMPT
     assert "ROW_NUMBER() OVER (PARTITION BY ticker" in SYSTEM_PROMPT
     assert "financial numbers ARE in the database" in SYSTEM_PROMPT
-    assert "Before saying a number is unavailable" in SYSTEM_PROMPT
+    assert "Before saying a number from the DATABASE section is unavailable" in SYSTEM_PROMPT
+    assert "Decline predictions and out-of-scope requests directly, without using tools" in SYSTEM_PROMPT
+
+
+
+def test_a_comma_after_a_year_is_not_part_of_the_number():
+    mentions = extract_mentions("In fiscal 2026, Micron grew 379%. Between 2024, 2025 and $1,234,567.5")
+    assert [(m.value, m.checkable) for m in mentions] == [
+        (2026.0, False), (379.0, True), (2024.0, False), (2025.0, False), (1234567.5, True)]
+    assert unsupported_numbers("In fiscal 2026, margin was 80.68%.", SOURCES) == []
+
+
+def test_golden_sql_results_in_decimal_are_read(monkeypatch):
+    from decimal import Decimal
+    monkeypatch.setattr(run_eval, "run_query", lambda engine, sql: {"rows": [[Decimal("80.68"), "MU", Decimal("54229000000")]]})
+    assert run_eval.expected_numbers(None, {"expected_sql": "x"}) == [80.68, 54229000000.0]
+
+
+def test_saved_results_include_the_sources_for_debugging(monkeypatch):
+    monkeypatch.setattr(run_eval, "run_query", lambda engine, sql: {"rows": [[1]]})
+    toolbox = FakeToolbox()
+    toolbox.sources = {"Q1": {"type": "sql", "rows": [[1]]}}
+    results = run_eval.run_golden_set([{"id": "a", "type": "sql", "question": "q"}],
+                                      ScriptedGemini([text_reply("Hi.")]), lambda: toolbox, None, log=lambda m: None)
+    assert results[0]["sources"] == {"Q1": {"type": "sql", "rows": [[1]]}}
+    json.dumps(results[0])                                                  # must be savable

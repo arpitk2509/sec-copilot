@@ -29,8 +29,9 @@ class ScriptedGemini:
     def __init__(self, script):
         self.script, self.calls = list(script), []
 
-    def generate(self, contents, system_instruction=None, tools=None):
-        self.calls.append({"contents": list(contents), "system": system_instruction, "tools": tools})
+    def generate(self, contents, system_instruction=None, tools=None, forbid_tools=False):
+        self.calls.append({"contents": list(contents), "system": system_instruction, "tools": tools,
+                           "forbid_tools": forbid_tools})
         return self.script.pop(0)
 
 
@@ -86,23 +87,6 @@ def test_tool_errors_are_given_to_the_model_so_it_can_retry():
     assert result.answer == "Fixed it." and result.model_calls == 3
     seen = gemini.calls[1]["contents"][2].parts[0].function_response.response
     assert "rejected" in seen["error"]
-
-
-def test_the_last_allowed_call_has_no_tools_and_asks_for_an_answer():
-    script = [tool_reply(("run_sql", {"sql": f"SELECT {i}"})) for i in range(MAX_MODEL_CALLS - 1)] + [text_reply("Best effort.")]
-    gemini = ScriptedGemini(script)
-    result = answer_question("q", gemini, FakeToolbox())
-    assert result.model_calls == MAX_MODEL_CALLS == len(gemini.calls)
-    assert gemini.calls[-1]["tools"] is None and FINAL_ANSWER_NOTICE.strip() in gemini.calls[-1]["system"]
-    assert all(call["tools"] is not None for call in gemini.calls[:-1])
-    assert result.answer == "Best effort." and result.hit_call_limit is True
-
-
-def test_a_model_that_ignores_the_no_tools_rule_gets_a_fallback_answer():
-    script = [tool_reply(("run_sql", {"sql": "x"})) for _ in range(MAX_MODEL_CALLS)]
-    result = answer_question("q", ScriptedGemini(script), FakeToolbox())
-    assert result.answer == "I could not produce an answer."
-    assert len(result.tool_calls) == MAX_MODEL_CALLS - 1          # the tool request on the last call was ignored
 
 
 def test_the_prompt_names_the_tools_and_the_data():

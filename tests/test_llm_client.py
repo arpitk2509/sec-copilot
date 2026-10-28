@@ -120,3 +120,6 @@ def test_repeated_dropped_connections_end_as_llm_unavailable():
     with pytest.raises(LLMUnavailable) as caught:
         gemini.generate("x")
     assert "ReadTimeout" in str(caught.value)
+
+
+
