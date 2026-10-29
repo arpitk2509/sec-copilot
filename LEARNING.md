@@ -29,3 +29,10 @@ The free-tier limit counts texts, not requests, so we found it by hitting it.
 Why the job stops cleanly and saves each batch, and why you only re-run it after the reset.
 Why hybrid search fuses ranks instead of scores.
 Why exact-word search and meaning-based search fail on different questions.
+An evaluation harness needs its own tests against real output. Both bugs came from data shapes my fake data never had.
+A failing case can mean the agent, the check, or the golden data is wrong, so read the answer before changing anything.
+A fix for one question can break another, so keep running the whole set. The price refusal is the proof.
+Warnings in logs, like the SDK’s “non-text parts” message, are clues worth reading.
+A model at temperature 0 still varies between runs, so measure with repeated runs.
+My “forbid tools” fix didn’t survive a real run. A change isn’t done until the logs stop showing the symptom.
+A fix for one case (the price refusal) once broke another, which is why the whole set runs every time.
