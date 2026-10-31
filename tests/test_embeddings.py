@@ -103,3 +103,17 @@ def test_a_dropped_connection_is_retried_like_a_rate_limit():
     client = FakeClient([httpx.RemoteProtocolError("Server disconnected without sending a response."), "ok"])
     assert len(GeminiEmbedder(client=client, sleep=waits.append).embed_documents(["a"])) == 1
     assert waits == [30]
+
+
+
+def test_the_embedder_builds_its_own_client_when_none_is_given(monkeypatch):
+    """Every other test passes a fake client, so this is the only test of the real construction path."""
+    monkeypatch.setenv("LLM_API_KEY", "not-a-real-key")
+    embedder = GeminiEmbedder()
+    assert embedder._client is not None and hasattr(embedder._client.models, "embed_content")
+
+
+def test_the_embedder_refuses_to_start_without_a_key(monkeypatch):
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    with pytest.raises(RuntimeError):
+        GeminiEmbedder()

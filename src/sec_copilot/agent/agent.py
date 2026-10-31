@@ -19,6 +19,7 @@ class AgentResult:
     model_calls: int
     tool_calls: list[tuple[str, dict]] = field(default_factory=list)
     hit_call_limit: bool = False     # True if the last call had to be an answer with no more tools
+    tool_outcomes: list[str] = field(default_factory=list)    # one short summary per tool call, same order
 
 
 def check_citations(answer: str, sources: dict[str, dict]) -> tuple[dict[str, dict], list[str]]:
@@ -29,6 +30,14 @@ def check_citations(answer: str, sources: dict[str, dict]) -> tuple[dict[str, di
     cited = {tag: sources[tag] for tag in tags if tag in sources}
     invented = [tag for tag in tags if tag not in sources]
     return cited, invented
+
+
+def summarize_outcome(result: dict) -> str:
+    """What a tool returned, in a few words: 'ERROR: ...', '6 filing excerpts', '1 rows'."""
+    if "error" in result:
+        return f"ERROR: {result['error']}"
+    text = f"{len(result['results'])} filing excerpts" if "results" in result else f"{result.get('row_count', '?')} rows"
+    return text + (f" ({result['note']})" if result.get("note") else "")
 
 
 def render_sources(sources: dict[str, dict]) -> str:
@@ -47,22 +56,25 @@ def render_sources(sources: dict[str, dict]) -> str:
 def answer_question(question: str, gemini, toolbox, max_model_calls: int = MAX_MODEL_CALLS, log=None) -> AgentResult:
     contents = [types.Content(role="user", parts=[types.Part(text=question)])]
     tool_log: list[tuple[str, dict]] = []
+    outcomes: list[str] = []
     fallback = "I could not produce an answer."
 
     for call_number in range(1, max_model_calls):               # every call except the last may use tools
         reply = gemini.generate(contents, system_instruction=SYSTEM_PROMPT, tools=[TOOL_DECLARATIONS])
         calls = reply.function_calls or []
         if not calls:
-            return AgentResult(reply.text or fallback, toolbox.sources, call_number, tool_log)
+            return AgentResult(reply.text or fallback, toolbox.sources, call_number, tool_log, tool_outcomes=outcomes)
 
         contents.append(reply.candidates[0].content)          # the model's own message, unchanged
         responses = []
         for call in calls:
             args = dict(call.args or {})
             tool_log.append((call.name, args))
+            result = toolbox.run(call.name, args)
+            outcomes.append(summarize_outcome(result))
             if log:
-                log(f"{call.name}({args})")
-            responses.append(types.Part.from_function_response(name=call.name, response=toolbox.run(call.name, args)))
+                log(f"{call.name}({args}) -> {outcomes[-1]}")
+            responses.append(types.Part.from_function_response(name=call.name, response=result))
         contents.append(types.Content(role="user", parts=responses))
 
     # Last call: a fresh single message with the question and everything gathered, and no tools at all.
@@ -72,4 +84,4 @@ def answer_question(question: str, gemini, toolbox, max_model_calls: int = MAX_M
     final = gemini.generate([types.Content(role="user", parts=[types.Part(text=final_prompt)])],
                             system_instruction=SYSTEM_PROMPT)
     return AgentResult(final.text or fallback, toolbox.sources, max_model_calls, tool_log,
-                       hit_call_limit=bool(tool_log))
+                       hit_call_limit=bool(tool_log), tool_outcomes=outcomes)

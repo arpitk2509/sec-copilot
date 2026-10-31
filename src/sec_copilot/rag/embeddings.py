@@ -35,7 +35,7 @@ class GeminiEmbedder:
             api_key = api_key or os.environ.get("LLM_API_KEY")
             if not api_key:
                 raise RuntimeError("Set LLM_API_KEY in your .env file (a Google AI Studio key).")
-                client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=90_000))
+            client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=90_000))
         self._client = client
         self._sleep = sleep
 

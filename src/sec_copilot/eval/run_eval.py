@@ -54,6 +54,7 @@ def run_golden_set(cases, gemini, make_toolbox, readonly_engine, log=print) -> l
         unsupported = unsupported_numbers(agent_result.answer, agent_result.sources)
         tool_names = [name for name, _ in agent_result.tool_calls]
         failures = score_case(case, agent_result.answer, tool_names, cited, expected, unsupported, invented)
+        failures += [f"a tool crashed: {o}" for o in agent_result.tool_outcomes if "The tool failed" in o]
         if case.get("db_check"):
             problem = database_check_failure(readonly_engine, case["db_check"])
             if problem:
@@ -64,6 +65,7 @@ def run_golden_set(cases, gemini, make_toolbox, readonly_engine, log=print) -> l
             "failures": failures, "answer": agent_result.answer, "model_calls": agent_result.model_calls,
             "tool_calls": agent_result.tool_calls, "unsupported_numbers": unsupported,
             "sources": agent_result.sources,
+            "tool_outcomes": agent_result.tool_outcomes,
             "expected_numbers": expected[:10],
         })
         log(f"{'PASS' if not failures else 'FAIL'}  {case['id']:<22} {agent_result.model_calls} calls"

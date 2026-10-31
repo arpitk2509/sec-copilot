@@ -1,8 +1,9 @@
 import json
 
 from sec_copilot.agent import toolbox as toolbox_module
-from sec_copilot.agent.agent import MAX_MODEL_CALLS, answer_question, render_sources
+from sec_copilot.agent.agent import MAX_MODEL_CALLS, answer_question, render_sources, summarize_outcome
 from sec_copilot.agent.prompts import FINAL_ANSWER_NOTICE
+from sec_copilot.eval import run_eval
 from sec_copilot.eval.compare import compare, load, pass_counts
 from tests.test_agent import FakeToolbox, ScriptedGemini, hit, make_toolbox, text_reply, tool_reply
 
@@ -89,3 +90,31 @@ def test_comparing_runs_uses_pass_rates_across_repeated_runs(tmp_path):
     text = "\n".join(compare(old, new))
     assert "b" in text and "<- better" in text and "<- WORSE" in text
     assert "before: 67% over 2 run(s)" in text and "better: 1   worse: 1" in text
+
+
+
+def test_tool_outcomes_are_summarized_and_recorded():
+    assert summarize_outcome({"error": "The tool failed: boom"}) == "ERROR: The tool failed: boom"
+    assert summarize_outcome({"results": [1, 2, 3]}) == "3 filing excerpts"
+    assert summarize_outcome({"results": [], "note": "No matching text."}) == "0 filing excerpts (No matching text.)"
+    assert summarize_outcome({"row_count": 15, "rows": []}) == "15 rows"
+
+    toolbox = ToolboxWithResults()
+    toolbox.results = {"search_filings": {"error": "Database error: nope"}, "run_sql": {"row_count": 2, "rows": [[1], [2]]}}
+    gemini = ScriptedGemini([tool_reply(("search_filings", {"query": "x"}), ("run_sql", {"sql": "SELECT 1"})), text_reply("Done.")])
+    logs = []
+    result = answer_question("q", gemini, toolbox, log=logs.append)
+    assert result.tool_outcomes == ["ERROR: Database error: nope", "2 rows"]
+    assert logs[0].endswith("-> ERROR: Database error: nope")
+
+
+
+def test_a_crashed_tool_fails_the_case_instead_of_looking_like_no_results(monkeypatch):
+    monkeypatch.setattr(run_eval, "run_query", lambda engine, sql: {"rows": [[1]]})
+    toolbox = ToolboxWithResults()
+    toolbox.results = {"search_filings": {"error": "The tool failed: 'NoneType' object has no attribute 'models'"}}
+    gemini = ScriptedGemini([tool_reply(("search_filings", {"query": "x"})), text_reply("No results were found.")])
+    results = run_eval.run_golden_set([{"id": "doc", "type": "doc", "question": "q"}], gemini, lambda: toolbox, None,
+                                      log=lambda m: None)
+    assert results[0]["passed"] is False
+    assert any(f.startswith("a tool crashed:") and "NoneType" in f for f in results[0]["failures"])

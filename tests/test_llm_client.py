@@ -123,3 +123,8 @@ def test_repeated_dropped_connections_end_as_llm_unavailable():
 
 
 
+def test_gemini_builds_its_own_client_when_none_is_given(monkeypatch):
+    monkeypatch.setenv("LLM_API_KEY", "not-a-real-key")
+    gemini = Gemini()
+    assert gemini._client is not None and hasattr(gemini._client.models, "generate_content")
+

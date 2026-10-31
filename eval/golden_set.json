@@ -32,7 +32,7 @@
   {
     "id": "falling_revenue_none", "type": "sql",
     "question": "Which companies had falling revenue year over year in their latest quarter?",
-    "must_call": ["run_sql"], "must_say_any": ["none", "no company", "no companies", "none of"], "max_unsupported": 0
+    "must_call": ["run_sql"], "must_say_any": ["none", "no company", "no companies", "none of", "zero", "not a single", "no firms", "did not experience", "all 15", "every company"], "max_unsupported": 0
   },
   {
     "id": "company_name", "type": "sql",
