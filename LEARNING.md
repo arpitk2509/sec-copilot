@@ -36,3 +36,6 @@ Warnings in logs, like the SDK’s “non-text parts” message, are clues worth
 A model at temperature 0 still varies between runs, so measure with repeated runs.
 My “forbid tools” fix didn’t survive a real run. A change isn’t done until the logs stop showing the symptom.
 A fix for one case (the price refusal) once broke another, which is why the whole set runs every time.
+A test with a fake can’t catch a bug in the code that builds the real thing, so every class needs one test that constructs it for real.
+A swallowed exception looked like a model failure for three days. Record what tools return, and make crashes fail loudly.
+Reproduce a bug before explaining it. Your traceback named the cause in one line.
