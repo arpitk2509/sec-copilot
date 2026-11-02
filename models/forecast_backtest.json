@@ -1,0 +1,54 @@
+{
+  "created": "2026-11-03T03:30:45",
+  "best_model": "ets",
+  "reference_model": "seasonal_naive",
+  "folds": 8,
+  "companies": 15,
+  "models": [
+    {
+      "model": "ets",
+      "mape": 0.04536800860773136,
+      "median_ape": 0.026673446796117127,
+      "forecasts": 114,
+      "beats_reference": 0.9122807017543859,
+      "error_q10": -0.03235686355741393,
+      "error_q90": 0.10246852260049105
+    },
+    {
+      "model": "yoy_trend",
+      "mape": 0.04978205961199631,
+      "median_ape": 0.027137222201575883,
+      "forecasts": 114,
+      "beats_reference": 0.8947368421052632,
+      "error_q10": -0.04448297781940631,
+      "error_q90": 0.08884936259300333
+    },
+    {
+      "model": "lightgbm",
+      "mape": 0.05849214031734946,
+      "median_ape": 0.0317157094600013,
+      "forecasts": 114,
+      "beats_reference": 0.8859649122807017,
+      "error_q10": -0.05668158719986776,
+      "error_q90": 0.10786011089522368
+    },
+    {
+      "model": "ridge",
+      "mape": 0.058637380296420905,
+      "median_ape": 0.03591318045398451,
+      "forecasts": 114,
+      "beats_reference": 0.9210526315789473,
+      "error_q10": -0.05965980185622831,
+      "error_q90": 0.15243394316089617
+    },
+    {
+      "model": "seasonal_naive",
+      "mape": 0.1736224357903512,
+      "median_ape": 0.12789453467208173,
+      "forecasts": 114,
+      "beats_reference": 0.0,
+      "error_q10": 0.030805544616771485,
+      "error_q90": 0.4744887216827958
+    }
+  ]
+}
