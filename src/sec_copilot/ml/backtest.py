@@ -68,6 +68,8 @@ def save_results(summary: pd.DataFrame, results: pd.DataFrame, path: Path = RESU
         "folds": int(results["cutoff"].nunique()),
         "companies": int(results["ticker"].nunique()),
         "models": summary.to_dict(orient="records"),
+        "best_model_error_by_company": results[results["model"] == summary.iloc[0]["model"]]
+        .groupby("ticker")["ape"].mean().round(4).to_dict(),     # how hard each company was to forecast
     }
     path.write_text(json.dumps(payload, indent=2, default=str))
 

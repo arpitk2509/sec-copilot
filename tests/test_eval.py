@@ -149,7 +149,8 @@ def test_the_prompt_contains_the_lessons_from_the_stress_test():
     assert "ROW_NUMBER() OVER (PARTITION BY ticker" in SYSTEM_PROMPT
     assert "financial numbers ARE in the database" in SYSTEM_PROMPT
     assert "Before saying a number from the DATABASE section is unavailable" in SYSTEM_PROMPT
-    assert "Decline predictions and out-of-scope requests directly, without using tools" in SYSTEM_PROMPT
+    assert "Decline stock-price and other market predictions directly, without using tools" in SYSTEM_PROMPT
+    assert "forecast_revenue" in SYSTEM_PROMPT and "[F1]" in SYSTEM_PROMPT
     assert "never cite a tag you were not given" in SYSTEM_PROMPT
 
 

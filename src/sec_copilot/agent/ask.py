@@ -13,7 +13,9 @@ from sec_copilot.rag.embeddings import GeminiEmbedder
 
 def show_sources(sources: dict[str, dict]) -> None:
     for tag, source in sources.items():
-        if source["type"] == "sql":
+        if source["type"] == "forecast":
+            print(f"\n[{tag}] FORECAST: {source['summary']}")
+        elif source["type"] == "sql":
             print(f"\n[{tag}] SQL ({source['total_rows']} rows): {source['sql']}")
             print("     " + " | ".join(source["columns"]))
             for row in source["rows"][:5]:

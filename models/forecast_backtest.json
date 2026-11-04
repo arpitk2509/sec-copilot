@@ -1,5 +1,5 @@
 {
-  "created": "2026-11-03T03:30:45",
+  "created": "2026-11-04T19:12:02",
   "best_model": "ets",
   "reference_model": "seasonal_naive",
   "folds": 8,
@@ -50,5 +50,22 @@
       "error_q10": 0.030805544616771485,
       "error_q90": 0.4744887216827958
     }
-  ]
+  ],
+  "best_model_error_by_company": {
+    "AAPL": 0.0555,
+    "ADBE": 0.0103,
+    "AMAT": 0.047,
+    "AMD": 0.0709,
+    "AVGO": 0.0551,
+    "CRM": 0.0163,
+    "CSCO": 0.0305,
+    "IBM": 0.0372,
+    "INTC": 0.0485,
+    "INTU": 0.025,
+    "MSFT": 0.0281,
+    "MU": 0.142,
+    "NOW": 0.0137,
+    "NVDA": 0.0559,
+    "TXN": 0.043
+  }
 }

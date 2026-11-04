@@ -1,4 +1,4 @@
-"""The two tools the model can call, plus the bookkeeping that makes citations possible."""
+"""The tools the model can call, plus the bookkeeping that makes citations possible."""
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -38,6 +38,16 @@ TOOL_DECLARATIONS = types.Tool(function_declarations=[
             "required": ["query"],
         },
     ),
+    types.FunctionDeclaration(
+        name="forecast_revenue",
+        description="A statistical forecast of one company's revenue for its next quarter, with an 80% range and the "
+                    "model's backtested accuracy. Use for any 'forecast' or 'next quarter revenue' question.",
+        parameters_json_schema={
+            "type": "object",
+            "properties": {"ticker": {"type": "string", "description": "The company's ticker, e.g. AAPL."}},
+            "required": ["ticker"],
+        },
+    ),
 ])
 
 
@@ -51,14 +61,15 @@ def jsonable(value):
 
 
 class Toolbox:
-    """Runs the tools for the model and remembers every result under a citation tag (Q1, Q2... and C1, C2...)."""
+    """Runs the tools for the model and remembers every result under a citation tag (Q1, C1, F1...)."""
 
-    def __init__(self, engine, readonly_engine, embedder):
+    def __init__(self, engine, readonly_engine, embedder, forecaster=None):
         self.engine = engine
         self.readonly_engine = readonly_engine
         self.embedder = embedder
+        self._forecaster = forecaster          # a function ticker -> result dict; built on first use if not given
         self.sources: dict[str, dict] = {}
-        self._counts = {"Q": 0, "C": 0}
+        self._counts = {"Q": 0, "C": 0, "F": 0}
 
     def _new_tag(self, prefix: str) -> str:
         self._counts[prefix] += 1
@@ -71,6 +82,8 @@ class Toolbox:
                 return self._run_sql(str(args.get("sql", "")))
             if name == "search_filings":
                 return self._search_filings(args)
+            if name == "forecast_revenue":
+                return self._forecast_revenue(str(args.get("ticker", "")))
             return {"error": f"Unknown tool: {name}"}
         except Exception as error:  # a tool must never crash the whole conversation
             return {"error": f"The tool failed: {error}"}
@@ -90,6 +103,22 @@ class Toolbox:
                              "rows": shown, "total_rows": len(rows)}
         return {"citation": tag, "columns": result["columns"], "rows": shown,
                 "row_count": len(rows), "truncated": len(rows) > len(shown)}
+
+    def _forecast_revenue(self, ticker: str) -> dict:
+        from sec_copilot.ml.forecast import ForecastUnavailable, RevenueForecaster    # imported late: it loads the ML libraries
+
+        ticker = ticker.strip().upper()
+        if not ticker:
+            return {"error": "ticker is required."}
+        if self._forecaster is None:
+            self._forecaster = RevenueForecaster(self.readonly_engine)
+        try:
+            result = self._forecaster(ticker)
+        except ForecastUnavailable as error:
+            return {"error": str(error)}
+        tag = self._new_tag("F")
+        self.sources[tag] = {"type": "forecast", "tag": tag, **result}
+        return {"citation": tag, **result}
 
     def _find(self, query: str, filters: dict):
         """Hybrid search, falling back to keywords if the embedding quota is used up. Returns (hits, note)."""

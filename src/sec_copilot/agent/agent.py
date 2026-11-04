@@ -8,9 +8,8 @@ from sec_copilot.agent.prompts import FINAL_ANSWER_NOTICE, SYSTEM_PROMPT
 from sec_copilot.agent.toolbox import TOOL_DECLARATIONS
 
 MAX_MODEL_CALLS = 4   # keeps one question within about 4 of the 500 free calls per day
-CITATION_BRACKET = re.compile(r"\[([QC]\d+(?:\s*[,;]\s*[QC]\d+)*)\]")   # [C1] or [C1, C4]
-CITATION_TAG = re.compile(r"[QC]\d+")
-
+CITATION_BRACKET = re.compile(r"\[([QCF]\d+(?:\s*[,;]\s*[QCF]\d+)*)\]")   # [C1] or [C1, C4]
+CITATION_TAG = re.compile(r"[QCF]\d+")
 
 @dataclass
 class AgentResult:
@@ -36,6 +35,8 @@ def summarize_outcome(result: dict) -> str:
     """What a tool returned, in a few words: 'ERROR: ...', '6 filing excerpts', '1 rows'."""
     if "error" in result:
         return f"ERROR: {result['error']}"
+    if "forecast_revenue" in result:
+        return f"forecast for {result['ticker']} ({result['model']})"
     text = f"{len(result['results'])} filing excerpts" if "results" in result else f"{result.get('row_count', '?')} rows"
     return text + (f" ({result['note']})" if result.get("note") else "")
 
@@ -44,7 +45,9 @@ def render_sources(sources: dict[str, dict]) -> str:
     """The results gathered so far, as plain text the model can read without any tool-call history."""
     lines = []
     for tag, source in sources.items():
-        if source["type"] == "sql":
+        if source["type"] == "forecast":
+            lines.append(f"[{tag}] {source['summary']}")
+        elif source["type"] == "sql":
             lines.append(f"[{tag}] SQL result ({source['total_rows']} rows): {source['sql']}")
             lines.append("  columns: " + ", ".join(source["columns"]))
             lines += ["  " + " | ".join(str(value) for value in row) for row in source["rows"]]

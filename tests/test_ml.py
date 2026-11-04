@@ -129,3 +129,4 @@ def test_summary_numbers_and_saved_file(tmp_path):
     save_results(summary, results, tmp_path / "out.json")
     saved = json.loads((tmp_path / "out.json").read_text())
     assert saved["best_model"] == "good" and saved["companies"] == 2 and len(saved["models"]) == 2
+    assert saved["best_model_error_by_company"] == {"A": 0.05, "B": 0.05}

@@ -45,7 +45,10 @@ def source_numbers(sources: dict[str, dict]) -> list[float]:
     """All numbers the model could legitimately have read: SQL result cells and numbers inside filing excerpts."""
     values: list[float] = []
     for source in sources.values():
-        if source["type"] == "sql":
+        if source["type"] == "forecast":
+            values += [float(v) for v in source.values() if isinstance(v, (int, float)) and not isinstance(v, bool)]
+            values += [m.value for m in extract_mentions(source.get("summary", ""))]
+        elif source["type"] == "sql":
             values += [float(cell) for row in source["rows"] for cell in row
                        if isinstance(cell, (int, float)) and not isinstance(cell, bool)]
         else:
