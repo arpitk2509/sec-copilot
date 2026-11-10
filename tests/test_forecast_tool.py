@@ -24,14 +24,28 @@ def test_the_forecast_uses_the_chosen_model_and_the_backtest_errors_for_its_rang
     history = panel[panel["ticker"] == "AAA"].sort_values("period_end")
     expected = history["revenue"].iloc[-4]                      # seasonal naive: the same quarter a year before the next one
     assert result["forecast_revenue"] == pytest.approx(expected)
-    assert result["range_low"] == pytest.approx(expected * np.exp(-0.1))
-    assert result["range_high"] == pytest.approx(expected * np.exp(0.2))
+    assert result["range_scale"] == 0.5                         # AAA's own error (5%) is half the average (10%)
+    assert result["range_low"] == pytest.approx(expected * np.exp(-0.1 * 0.5))
+    assert result["range_high"] == pytest.approx(expected * np.exp(0.2 * 0.5))
     assert result["last_quarter_revenue"] == pytest.approx(history["revenue"].iloc[-1])
     assert result["backtest_mape_percent"] == 10.0 and result["company_backtest_mape_percent"] == 5.0
     assert result["forecast_quarter_end_approx"] > result["last_quarter_end"]
     assert "80% range" in result["summary"] and "10.0%" in result["summary"] and "5.0% for AAA" in result["summary"]
 
+def test_hard_to_forecast_companies_get_wider_ranges_within_limits():
+    panel = make_panel()
 
+    def widths(company_errors):
+        backtest = {**BACKTEST, "best_model_error_by_company": company_errors}
+        result = forecast_next_quarter(panel, "AAA", backtest)
+        return result["range_scale"], np.log(result["range_high"] / result["range_low"])
+
+    ordinary, wide = widths({"AAA": 0.15}), widths({"AAA": 0.90})
+    assert ordinary[0] == 1.5 and wide[0] == 4.0                # the second is capped at four times the average
+    assert wide[1] > ordinary[1] > widths({"AAA": 0.05})[1]
+    assert widths({})[0] == 1.0                                 # no company history: use the pooled range as is
+    assert "scaled to AAA's own backtest error" in forecast_next_quarter(panel, "AAA", BACKTEST)["summary"]
+    
 @pytest.mark.parametrize("model", ["ets", "yoy_trend", "ridge", "lightgbm"])
 def test_every_model_can_produce_the_final_forecast(model):
     backtest = {**BACKTEST, "best_model": model, "models": [{**BACKTEST["models"][0], "model": model}]}

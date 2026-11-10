@@ -17,7 +17,7 @@ class Mention:
     text: str
     value: float
     checkable: bool     # False for things like years, "8 quarters" and day numbers, which we don't verify
-
+    half_unit: float = 0.0   # rounding allowance: half of the last digit written ("$3.2 billion" is within 0.05 billion)
 
 def extract_mentions(text: str) -> list[Mention]:
     """Every number in the text, with units applied: '$54.2 billion' -> 54200000000.0, '379.27%' -> 379.27."""
@@ -32,7 +32,9 @@ def extract_mentions(text: str) -> list[Mention]:
         checkable = not is_year and bool(
             "." in digits or dollar or unit or percent or abs(value) >= 1000
         )
-        mentions.append(Mention(match.group(0).strip(), value, checkable))
+        decimals = len(digits.split(".")[1]) if "." in digits else 0
+        half_unit = 0.5 * 10 ** (-decimals) * SCALES.get((unit or "").lower(), 1.0)
+        mentions.append(Mention(match.group(0).strip(), value, checkable, half_unit))
     return mentions
 
 
@@ -59,4 +61,14 @@ def source_numbers(sources: dict[str, dict]) -> list[float]:
 def unsupported_numbers(answer: str, sources: dict[str, dict]) -> list[str]:
     """Numbers in the answer that appear in none of the sources: the model made them up or computed them itself."""
     known = source_numbers(sources)
-    return [m.text for m in extract_mentions(answer) if m.checkable and not numbers_match(m.value, known)]
+    magnitudes = [abs(c) for c in known]
+    flagged = []
+    for mention in extract_mentions(answer):
+        if not mention.checkable:
+            continue
+        # "an operating loss of $3.2 billion" is the stored -3.2 billion in words, so an unsigned number may match
+        # either sign. A number written with an explicit minus must match exactly, including the sign.
+        candidates = known + magnitudes if mention.value >= 0 else known
+        if not numbers_match(mention.value, candidates, abs_tol=mention.half_unit):
+            flagged.append(mention.text)
+    return flagged

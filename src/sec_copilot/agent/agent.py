@@ -11,6 +11,7 @@ MAX_MODEL_CALLS = 4   # keeps one question within about 4 of the 500 free calls 
 CITATION_BRACKET = re.compile(r"\[([QCF]\d+(?:\s*[,;]\s*[QCF]\d+)*)\]")   # [C1] or [C1, C4]
 CITATION_TAG = re.compile(r"[QCF]\d+")
 
+
 @dataclass
 class AgentResult:
     answer: str
@@ -19,6 +20,7 @@ class AgentResult:
     tool_calls: list[tuple[str, dict]] = field(default_factory=list)
     hit_call_limit: bool = False     # True if the last call had to be an answer with no more tools
     tool_outcomes: list[str] = field(default_factory=list)    # one short summary per tool call, same order
+    invented_tags: list[str] = field(default_factory=list)    # citation tags the model made up (removed from the answer)
 
 
 def check_citations(answer: str, sources: dict[str, dict]) -> tuple[dict[str, dict], list[str]]:
@@ -29,6 +31,23 @@ def check_citations(answer: str, sources: dict[str, dict]) -> tuple[dict[str, di
     cited = {tag: sources[tag] for tag in tags if tag in sources}
     invented = [tag for tag in tags if tag not in sources]
     return cited, invented
+
+
+def remove_invented_tags(answer: str, sources: dict[str, dict]) -> tuple[str, list[str]]:
+    """Drop citation tags that point to nothing, so the reader never meets a dangling [C1]. Returns (text, removed)."""
+    removed: list[str] = []
+
+    def keep_real(match):
+        tags = CITATION_TAG.findall(match.group(1))
+        real = [tag for tag in tags if tag in sources]
+        removed.extend(tag for tag in tags if tag not in sources)
+        return f"[{', '.join(real)}]" if real else ""
+
+    cleaned = CITATION_BRACKET.sub(keep_real, answer)
+    if not removed:
+        return answer, []
+    cleaned = re.sub(r"[ \t]+([.,;:!?])", r"\1", cleaned)        # no stray space left before punctuation
+    return re.sub(r"[ \t]{2,}", " ", cleaned).strip(), removed
 
 
 def summarize_outcome(result: dict) -> str:
@@ -66,7 +85,9 @@ def answer_question(question: str, gemini, toolbox, max_model_calls: int = MAX_M
         reply = gemini.generate(contents, system_instruction=SYSTEM_PROMPT, tools=[TOOL_DECLARATIONS])
         calls = reply.function_calls or []
         if not calls:
-            return AgentResult(reply.text or fallback, toolbox.sources, call_number, tool_log, tool_outcomes=outcomes)
+            answer, invented = remove_invented_tags(reply.text or fallback, toolbox.sources)
+            return AgentResult(answer, toolbox.sources, call_number, tool_log, tool_outcomes=outcomes,
+                               invented_tags=invented)
 
         contents.append(reply.candidates[0].content)          # the model's own message, unchanged
         responses = []
@@ -86,5 +107,6 @@ def answer_question(question: str, gemini, toolbox, max_model_calls: int = MAX_M
     final_prompt = f"Question: {question}\n\nResults gathered so far:\n{gathered}{FINAL_ANSWER_NOTICE}"
     final = gemini.generate([types.Content(role="user", parts=[types.Part(text=final_prompt)])],
                             system_instruction=SYSTEM_PROMPT)
-    return AgentResult(final.text or fallback, toolbox.sources, max_model_calls, tool_log,
-                       hit_call_limit=bool(tool_log), tool_outcomes=outcomes)
+    answer, invented = remove_invented_tags(final.text or fallback, toolbox.sources)
+    return AgentResult(answer, toolbox.sources, max_model_calls, tool_log, hit_call_limit=bool(tool_log),
+                       tool_outcomes=outcomes, invented_tags=invented)

@@ -38,12 +38,12 @@ def main() -> None:
         result = answer_question(args.question, gemini, toolbox, log=lambda message: print(f"  tool -> {message}"))
     except LLMUnavailable as error:
         raise SystemExit(f"The model is unavailable: {error}. Try again in a few minutes. (Daily limits reset at midnight Pacific time.)") from error
-    cited, invented = check_citations(result.answer, result.sources)
+    cited, _ = check_citations(result.answer, result.sources)
     print(f"\n{result.answer}")
     print(f"\n--- {result.model_calls} model calls, {len(result.tool_calls)} tool calls"
           + (" (hit the call limit)" if result.hit_call_limit else "") + " ---")
-    if invented:
-        print(f"WARNING: the answer cites tags that do not exist: {invented}")
+    if result.invented_tags:
+        print(f"(Removed made-up citation tags from the answer: {result.invented_tags})")
     if result.tool_calls and not cited:
         print("WARNING: tools were used but the answer cites no sources.")
     unsupported = unsupported_numbers(result.answer, result.sources)

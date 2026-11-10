@@ -118,3 +118,38 @@ def test_a_crashed_tool_fails_the_case_instead_of_looking_like_no_results(monkey
                                       log=lambda m: None)
     assert results[0]["passed"] is False
     assert any(f.startswith("a tool crashed:") and "NoneType" in f for f in results[0]["failures"])
+
+from sec_copilot.agent.agent import (
+    MAX_MODEL_CALLS,
+    answer_question,
+    remove_invented_tags,
+    render_sources,
+    summarize_outcome,
+)
+
+
+
+def test_made_up_citation_tags_are_removed_cleanly():
+    sources = {"Q1": {}, "C1": {}}
+    text, removed = remove_invented_tags("Intel's 10-K is not loaded [C9]. Margins fell [Q1, C7] and rose [C8].", sources)
+    assert text == "Intel's 10-K is not loaded. Margins fell [Q1] and rose." and removed == ["C9", "C7", "C8"]
+    untouched = "Nothing to fix  here [Q1] ."
+    assert remove_invented_tags(untouched, sources) == (untouched, [])
+
+
+def test_the_agent_returns_the_cleaned_answer_and_reports_what_it_removed():
+    gemini = ScriptedGemini([text_reply("The 10-K text is not loaded [C1]. Margins were -24.7% [Q1].")])
+    result = answer_question("q", gemini, ToolboxWithResults())
+    assert result.answer == "The 10-K text is not loaded. Margins were -24.7% [Q1]." and result.invented_tags == ["C1"]
+
+
+def test_removed_tags_are_recorded_by_the_evaluation_but_do_not_fail_the_case(monkeypatch):
+    monkeypatch.setattr(run_eval, "run_query", lambda engine, sql: {"rows": [[1]]})
+    gemini = ScriptedGemini([text_reply("Not loaded [C1].")])
+    logs = []
+    results = run_eval.run_golden_set([{"id": "x", "type": "limits", "question": "q", "must_say_any": ["not loaded"]}],
+                                      gemini, lambda: ToolboxWithResults(), None, log=logs.append)
+    assert results[0]["passed"] is True and results[0]["invented_tags_removed"] == ["C1"]
+    summary = []
+    run_eval.summarize(results, log=summary.append)
+    assert any("made-up citation tags" in line for line in summary)

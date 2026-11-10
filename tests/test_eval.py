@@ -146,6 +146,7 @@ def test_the_runner_stops_cleanly_when_the_model_becomes_unavailable(monkeypatch
 
 def test_the_prompt_contains_the_lessons_from_the_stress_test():
     from sec_copilot.agent.prompts import SYSTEM_PROMPT
+    assert "Never put a citation tag on a statement about missing data" in SYSTEM_PROMPT
     assert "ROW_NUMBER() OVER (PARTITION BY ticker" in SYSTEM_PROMPT
     assert "financial numbers ARE in the database" in SYSTEM_PROMPT
     assert "Before saying a number from the DATABASE section is unavailable" in SYSTEM_PROMPT
@@ -176,3 +177,27 @@ def test_saved_results_include_the_sources_for_debugging(monkeypatch):
                                       ScriptedGemini([text_reply("Hi.")]), lambda: toolbox, None, log=lambda m: None)
     assert results[0]["sources"] == {"Q1": {"type": "sql", "rows": [[1]]}}
     json.dumps(results[0])                                                  # must be savable
+
+
+
+def test_a_loss_written_in_words_matches_a_stored_negative_number():
+    sources = {"Q1": {"type": "sql", "rows": [["INTC", -3_176_000_000, -24.7]]}}
+    assert unsupported_numbers("Intel had an operating loss of $3,176,000,000, a margin of -24.7% [Q1].", sources) == []
+    assert unsupported_numbers("The loss was -$3.2 billion.", sources) == []       # 3.176 rounded to one decimal
+    assert unsupported_numbers("It lost 24.7%.", sources) == []
+
+
+def test_an_explicit_minus_must_match_the_sign_exactly_and_real_inventions_are_still_caught():
+    sources = {"Q1": {"type": "sql", "rows": [["MU", 54_229_000_000, 379.27]]}}
+    assert unsupported_numbers("Revenue was -$54.2 billion.", sources) == ["-$54.2 billion"]
+    assert unsupported_numbers("Revenue was $54.2 billion, up 379.27%.", sources) == []
+    assert unsupported_numbers("Revenue was $61 billion.", sources) == ["$61 billion"]
+
+
+def test_rounding_is_judged_by_how_many_digits_were_written():
+    sources = {"Q1": {"type": "sql", "rows": [["X", 3_176_000_000, 24.7, 54_229_000_000]]}}
+    assert unsupported_numbers("$3.2 billion, 25%, $54 billion and $54.2 billion.", sources) == []
+    assert unsupported_numbers("$3.3 billion", sources) == ["$3.3 billion"]       # not a rounding of 3.176
+    assert unsupported_numbers("26% and $55 billion", sources) == ["26%", "$55 billion"]
+    assert unsupported_numbers("$3,176,000,001", sources) == []
+    assert unsupported_numbers("$3,240,000,000", sources) == ["$3,240,000,000"]    # 2% off: not rounding

@@ -65,7 +65,7 @@ def run_golden_set(cases, gemini, make_toolbox, readonly_engine, log=print) -> l
             "failures": failures, "answer": agent_result.answer, "model_calls": agent_result.model_calls,
             "tool_calls": agent_result.tool_calls, "unsupported_numbers": unsupported,
             "sources": agent_result.sources,
-            "tool_outcomes": agent_result.tool_outcomes,
+            "tool_outcomes": agent_result.tool_outcomes, "invented_tags_removed": agent_result.invented_tags,
             "expected_numbers": expected[:10],
         })
         log(f"{'PASS' if not failures else 'FAIL'}  {case['id']:<22} {agent_result.model_calls} calls"
@@ -81,6 +81,9 @@ def summarize(results: list[dict], log=print) -> None:
     passed = sum(r["passed"] for r in results)
     log(f"\nPassed {passed} of {len(results)} ({100 * passed // max(len(results), 1)}%)   "
         f"model calls used: {sum(r['model_calls'] for r in results)}")
+    removed = sum(bool(r.get("invented_tags_removed")) for r in results)
+    if removed:
+        log(f"  note: {removed} answer(s) had made-up citation tags, which were removed before scoring")
     for kind, (ok, total) in sorted(by_type.items()):
         log(f"  {kind:<10} {ok}/{total}")
 
