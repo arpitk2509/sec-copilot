@@ -123,16 +123,9 @@ uv sync
 
 Edit `.env`: set `SEC_USER_AGENT` to your name and email, set `LLM_API_KEY`, and set `LLM_MODEL` if you want a different Gemini model. Never commit `.env`.
 
-**2. Start the database and build the data.**
+**2. Load the data. The fast way (about two minutes):**
 
-```bash
-docker compose up -d db
-uv run python -m sec_copilot.ingest.load_facts
-uv run python -m sec_copilot.ingest.load_filings
-uv run python -m sec_copilot.rag.embed_chunks
-```
-
-The first command loads quarterly financials, the second downloads and chunks the 10-K sections, and the third creates the embeddings. The embedding step is resumable. Google's free tier allows about 1,000 embeddings a day and there are about 1,500 chunks, so a first run spans two days. Everything else works while it runs, using keyword search.
+download the latest sec-copilot-*.sql.gz from Releases, then run docker compose up -d db followed by scripts/restore_db.sh <the downloaded file>. Building from scratch instead takes about two days of free embedding quota: run the three commands sec_copilot.ingest.load_facts, sec_copilot.ingest.load_filings and sec_copilot.rag.embed_chunks. To bring either up to date later, run uv run python -m sec_copilot.ingest.refresh.
 
 **3. Start the app.**
 
@@ -181,7 +174,7 @@ Python 3.12 and uv, PostgreSQL 16 with pgvector (HNSW index) and full-text searc
 
 - **Coverage.** 15 companies. Quarterly facts from 2014. Only each company's latest 10-K text (risk factors and MD&A) is searchable.
 - **Known data gaps** (details in [`docs/data_notes.md`](docs/data_notes.md)): Intel's 10-K sections could not be extracted, so there is no Intel filing text; IBM's MD&A and operating income are missing; Intuit's gross profit is missing; Salesforce revenue is missing for fiscal 2016 to 2018; Broadcom starts in 2018. Fourth quarters are derived as the full year minus the first three quarters, and suspect derivations are skipped.
-- **Data freshness.** The data is as of 2026-09-30. There is no automatic refresh yet, so companies that reported later are not included.
+- **Data freshness.** The data is as of the date of your last refresh and can be updated with that command.
 - **Forecasts** cover revenue only, one quarter ahead, from past revenue alone. They ignore company guidance, new products and the economy.
 - **Free-tier constraints.** About 15 model requests a minute and 500 a day, so a public demo needs a daily cap.
 - **Small evaluation set.** 17 questions written by the author.
