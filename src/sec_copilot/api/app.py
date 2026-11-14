@@ -3,6 +3,7 @@ import logging
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from sec_copilot.api.service import MAX_QUESTION_CHARS, AskService, AssistantUnavailable, ServiceError
@@ -73,6 +74,10 @@ def create_app(service_factory=build_default_service) -> FastAPI:
         if "service" not in holder:
             holder["service"] = service_factory()
         return holder["service"]
+
+    @app.get("/", include_in_schema=False)
+    def root():
+        return RedirectResponse("/docs")                  # visiting the bare address shows the interactive documentation
 
     @app.post("/ask", response_model=AskResponse)
     def ask(body: AskRequest, request: Request):

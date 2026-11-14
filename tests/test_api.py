@@ -186,3 +186,8 @@ def test_the_visitor_address_comes_from_the_proxy_header_when_present():
 
 def test_service_errors_carry_their_status():
     assert InvalidQuestion("x").status_code == 422 and Busy("x").status_code == 503
+
+
+def test_the_bare_address_sends_visitors_to_the_documentation():
+    response = api(make_service()).get("/", follow_redirects=False)
+    assert response.status_code in (302, 307) and response.headers["location"] == "/docs"

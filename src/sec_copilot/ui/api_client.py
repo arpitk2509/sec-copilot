@@ -3,8 +3,7 @@ import os
 
 import httpx
 
-API_URL = os.getenv("API_URL", "http://localhost:8000")
-
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8010")
 
 class ApiProblem(Exception):
     """Something the visitor should read. level is 'info' for limits and busy messages, 'error' for real faults."""
