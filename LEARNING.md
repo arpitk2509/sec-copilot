@@ -39,3 +39,9 @@ A fix for one case (the price refusal) once broke another, which is why the whol
 A test with a fake can’t catch a bug in the code that builds the real thing, so every class needs one test that constructs it for real.
 A swallowed exception looked like a model failure for three days. Record what tools return, and make crashes fail loudly.
 Reproduce a bug before explaining it. Your traceback named the cause in one line.
+A single lucky forecast (Apple, 0.03% off) proves nothing. The backtest (4.5% typical) is the evidence.
+A pooled range was too narrow for hard-to-forecast companies. Uncertainty should reflect each company’s own history.
+Stale data silently turns a “forecast” into a “hindsight check”. Say “data as of” and plan a refresh.
+A number checker must model how people write numbers (a “loss” is positive in words, rounding is implied by digits), or it cries wolf.
+When a model breaks a rule one run in four, move the guardrail into code.
+Record what a guardrail removed, so you can still measure the model’s behaviour.

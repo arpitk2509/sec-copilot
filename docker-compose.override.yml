@@ -1,0 +1,41 @@
+# Adds the API and the chat page next to the database defined in docker-compose.yml.
+# Docker Compose merges this file in automatically, so a plain `docker compose up` starts all three.
+x-app: &app
+  build: .
+  image: sec-copilot:local
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *app
+    environment:
+      DATABASE_URL: ${DATABASE_URL_DOCKER:?Add DATABASE_URL_DOCKER to your .env file (your DATABASE_URL with host db and port 5432)}
+      READONLY_DATABASE_URL: ${READONLY_DATABASE_URL_DOCKER:-postgresql+psycopg://copilot_readonly:readonly@db:5432/sec_copilot}
+      LLM_API_KEY: ${LLM_API_KEY:?Add LLM_API_KEY to your .env file}
+      LLM_MODEL: ${LLM_MODEL:-gemini-3.5-flash-lite}
+      DAILY_QUESTION_LIMIT: ${DAILY_QUESTION_LIMIT:-100}
+      RATE_LIMIT_PER_MINUTE: ${RATE_LIMIT_PER_MINUTE:-3}
+    ports:
+      - "8010:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  ui:
+    <<: *app
+    command: ["streamlit", "run", "src/sec_copilot/ui/app.py", "--server.address=0.0.0.0", "--server.port=8501"]
+    environment:
+      API_URL: http://api:8000
+      STREAMLIT_SERVER_HEADLESS: "true"
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
