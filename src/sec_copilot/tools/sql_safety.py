@@ -6,7 +6,6 @@ We never run the original text. We run SQL regenerated from the parsed tree, so 
 import re
 
 import sqlglot
-import sqlglot
 from sqlglot import exp
 from sqlglot.errors import SqlglotError
 

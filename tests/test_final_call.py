@@ -120,11 +120,7 @@ def test_a_crashed_tool_fails_the_case_instead_of_looking_like_no_results(monkey
     assert any(f.startswith("a tool crashed:") and "NoneType" in f for f in results[0]["failures"])
 
 from sec_copilot.agent.agent import (
-    MAX_MODEL_CALLS,
-    answer_question,
     remove_invented_tags,
-    render_sources,
-    summarize_outcome,
 )
 
 

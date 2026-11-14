@@ -4,8 +4,8 @@ from decimal import Decimal
 from google.genai import types
 
 from sec_copilot.agent import toolbox as toolbox_module
-from sec_copilot.agent.agent import MAX_MODEL_CALLS, answer_question, check_citations
-from sec_copilot.agent.prompts import FINAL_ANSWER_NOTICE, SYSTEM_PROMPT
+from sec_copilot.agent.agent import answer_question, check_citations
+from sec_copilot.agent.prompts import SYSTEM_PROMPT
 from sec_copilot.agent.toolbox import MAX_ROWS_TO_MODEL, Toolbox, jsonable
 from sec_copilot.rag.embeddings import QuotaExceeded
 from sec_copilot.rag.retrieval import Hit

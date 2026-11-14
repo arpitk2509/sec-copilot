@@ -90,7 +90,8 @@ def test_bad_questions_are_rejected_before_any_model_call():
 def test_each_visitor_gets_a_few_questions_per_minute():
     clock = Clock()
     client = api(make_service(per_minute=2, clock=clock))
-    ask = lambda who: client.post("/ask", json={"question": "q"}, headers={"x-forwarded-for": who})
+    def ask(who):
+        return client.post("/ask", json={"question": "q"}, headers={"x-forwarded-for": who})
     assert [ask("1.1.1.1").status_code for _ in range(3)] == [200, 200, 429]
     assert ask("2.2.2.2").status_code == 200                                     # someone else is unaffected
     clock.now += 61                                                              # a minute later
