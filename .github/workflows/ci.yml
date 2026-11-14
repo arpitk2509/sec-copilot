@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the older run, so you never wait on outdated checks.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Lint and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # Dummy values: the tests use fakes and never contact the SEC or Google.
+      SEC_USER_AGENT: "CI Runner ci@example.com"
+      LLM_API_KEY: "ci-not-a-real-key"
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies (exactly as locked)
+        run: uv sync --locked
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Test
+        run: uv run pytest -q
+
+  docker:
+    name: Build and smoke-test the containers
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # Dummy values for the variables docker-compose.override.yml requires.
+      DATABASE_URL_DOCKER: postgresql+psycopg://postgres:postgres@db:5432/sec_copilot
+      LLM_API_KEY: ci-not-a-real-key
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Check the compose files
+        run: docker compose config --quiet
+
+      - name: Build the image
+        run: docker compose build
+
+      - name: Start the database and API on an empty database and wait until healthy
+        run: docker compose up -d --wait --wait-timeout 240 db api
+
+      - name: Ask the API for its health
+        run: curl -fsS http://127.0.0.1:8010/health
+
+      - name: Show container logs if something failed
+        if: failure()
+        run: docker compose logs --no-color --tail 100
+
+      - name: Clean up
+        if: always()
+        run: docker compose down -v
