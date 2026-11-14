@@ -43,7 +43,7 @@ class Gemini:
         self.calls_made = 0
 
     def generate(self, contents, system_instruction=None, tools=None):
-        config = types.GenerateContentConfig(
+        generation_config = types.GenerateContentConfig(
             system_instruction=system_instruction,
             tools=tools,
             temperature=0.0,                                            # same question, same behaviour
@@ -52,7 +52,7 @@ class Gemini:
         for attempt in range(1, MAX_ATTEMPTS + 1):
             self._pace()
             try:
-                response = self._client.models.generate_content(model=self.model, contents=contents, config=config)
+                response = self._client.models.generate_content(model=self.model, contents=contents, config=generation_config)
                 self.calls_made += 1
                 return response
             except (errors.APIError, httpx.TransportError) as error:

@@ -1,7 +1,13 @@
 import json
 
 from sec_copilot.agent import toolbox as toolbox_module
-from sec_copilot.agent.agent import MAX_MODEL_CALLS, answer_question, render_sources, summarize_outcome
+from sec_copilot.agent.agent import (
+    MAX_MODEL_CALLS,
+    answer_question,
+    remove_invented_tags,
+    render_sources,
+    summarize_outcome,
+)
 from sec_copilot.agent.prompts import FINAL_ANSWER_NOTICE
 from sec_copilot.eval import run_eval
 from sec_copilot.eval.compare import compare, load, pass_counts
@@ -118,10 +124,6 @@ def test_a_crashed_tool_fails_the_case_instead_of_looking_like_no_results(monkey
                                       log=lambda m: None)
     assert results[0]["passed"] is False
     assert any(f.startswith("a tool crashed:") and "NoneType" in f for f in results[0]["failures"])
-
-from sec_copilot.agent.agent import (
-    remove_invented_tags,
-)
 
 
 
