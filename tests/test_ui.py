@@ -130,6 +130,32 @@ def test_the_client_maps_each_kind_of_answer(monkeypatch):
         api_client.ask("q")
     assert "502" in caught.value.message
 
+def test_the_visitor_is_read_from_the_last_forwarded_address():
+    assert api_client.visitor_from_headers({"X-Forwarded-For": "6.6.6.6, 9.9.9.9"}) == "9.9.9.9"
+    assert api_client.visitor_from_headers({"X-Forwarded-For": "9.9.9.9"}) == "9.9.9.9"
+    assert api_client.visitor_from_headers({}) is None and api_client.visitor_from_headers(None) is None
+    assert api_client.visitor_from_headers({"X-Forwarded-For": " "}) is None
+
+
+def test_the_client_vouches_for_the_visitor_only_when_it_has_the_secret(monkeypatch):
+    sent = []
+    monkeypatch.setattr(httpx, "post", lambda url, **kw: sent.append(kw["headers"]) or FakeResponse(200, {"answer": "ok"}))
+
+    monkeypatch.delenv("UI_SHARED_SECRET", raising=False)
+    api_client.ask("q", visitor="9.9.9.9")                       # no secret configured (running locally)
+    monkeypatch.setenv("UI_SHARED_SECRET", "s3cret")
+    api_client.ask("q", visitor="9.9.9.9")
+    api_client.ask("q")                                          # no visitor known
+    assert sent == [{}, {"x-ui-secret": "s3cret", "x-visitor-id": "9.9.9.9"}, {}]
+
+
+def test_the_page_asks_on_behalf_of_the_visitor_when_one_is_known(monkeypatch):
+    seen = []
+    monkeypatch.setattr(api_client, "health", lambda *a, **k: HEALTH)
+    monkeypatch.setattr(api_client, "ask", lambda q, *a, **k: seen.append(k.get("visitor")) or PAYLOAD)
+    at = page()
+    at.chat_input[0].set_value("q").run()
+    assert not at.exception and len(seen) == 1                   # headless there is no proxy, so the visitor is simply None
 
 def test_the_client_explains_an_unreachable_api_and_health_degrades_quietly(monkeypatch):
     def down(*a, **k):

@@ -176,14 +176,39 @@ def test_the_service_is_built_lazily_and_health_reports_the_basics():
     assert built == [1]
 
 
-def test_the_visitor_address_comes_from_the_proxy_header_when_present():
-    class Fake:
-        def __init__(self, headers, host):
-            self.headers, self.client = headers, type("C", (), {"host": host})()
+class FakeRequest:
+    def __init__(self, headers=None, host="127.0.0.1"):
+        self.headers, self.client = headers or {}, type("C", (), {"host": host})()
 
-    assert client_id(Fake({"x-forwarded-for": "9.9.9.9, 10.0.0.1"}, "10.0.0.1")) == "9.9.9.9"
-    assert client_id(Fake({}, "127.0.0.1")) == "127.0.0.1"
 
+def test_the_address_comes_from_the_proxy_and_a_caller_cannot_forge_it():
+    # The hosting proxy appends the real address LAST, after whatever the caller put in the header.
+    assert client_id(FakeRequest({"x-forwarded-for": "6.6.6.6, 9.9.9.9"}, "10.0.0.1")) == "9.9.9.9"
+    assert client_id(FakeRequest({"x-forwarded-for": "9.9.9.9"})) == "9.9.9.9"
+    assert client_id(FakeRequest({}, "127.0.0.1")) == "127.0.0.1"
+
+
+def test_our_chat_page_is_believed_about_the_visitor_only_with_the_shared_secret():
+    page = {"x-ui-secret": "s3cret", "x-visitor-id": "203.0.113.7"}
+    assert client_id(FakeRequest(page), ui_secret="s3cret") == "203.0.113.7"
+    assert client_id(FakeRequest({**page, "x-ui-secret": "wrong"}, "10.0.0.5"), ui_secret="s3cret") == "10.0.0.5"
+    assert client_id(FakeRequest({"x-visitor-id": "203.0.113.7"}, "10.0.0.5"), ui_secret="s3cret") == "10.0.0.5"
+    assert client_id(FakeRequest(page, "10.0.0.5"), ui_secret=None) == "10.0.0.5"            # no secret configured: never trusted
+    assert client_id(FakeRequest({"x-ui-secret": "s3cret", "x-visitor-id": "  "}, "10.0.0.5"), ui_secret="s3cret") == "10.0.0.5"
+    assert len(client_id(FakeRequest({"x-ui-secret": "s3cret", "x-visitor-id": "9" * 500}), ui_secret="s3cret")) == 100
+    assert client_id(FakeRequest({"x-ui-secret": "sécret"}), ui_secret="s3cret") == "127.0.0.1"   # odd characters do not crash
+
+
+def test_visitors_behind_our_chat_page_get_their_own_allowance(monkeypatch):
+    monkeypatch.setenv("UI_SHARED_SECRET", "s3cret")
+    client = api(make_service(per_minute=1))
+
+    def ask(visitor, secret="s3cret"):
+        headers = {"x-ui-secret": secret, "x-visitor-id": visitor}
+        return client.post("/ask", json={"question": "q"}, headers=headers).status_code
+
+    assert [ask("1.1.1.1"), ask("2.2.2.2"), ask("1.1.1.1")] == [200, 200, 429]     # same chat-page connection, separate limits
+    assert [ask("3.3.3.3", secret="wrong"), ask("4.4.4.4", secret="wrong")] == [200, 429]   # a forged claim shares one bucket
 
 def test_service_errors_carry_their_status():
     assert InvalidQuestion("x").status_code == 422 and Busy("x").status_code == 503

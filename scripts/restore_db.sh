@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Load a snapshot made by dump_db.sh into an EMPTY database.
 # Usage: scripts/restore_db.sh <snapshot.sql.gz>
+# To load into a remote database (for example on Neon), set DB_URL to its connection string.
 set -euo pipefail
 
 if [ $# -ne 1 ] || [ ! -f "$1" ]; then
@@ -11,7 +12,8 @@ fi
 DB_EXEC="${DB_EXEC-docker compose exec -T db}"
 DB_USER="${POSTGRES_USER:-postgres}"
 DB_NAME="${POSTGRES_DB:-sec_copilot}"
-psql_cmd() { $DB_EXEC psql -U "$DB_USER" -d "$DB_NAME" "$@"; }
+if [ -n "${DB_URL:-}" ]; then TARGET=(-d "$DB_URL"); else TARGET=(-U "$DB_USER" -d "$DB_NAME"); fi
+psql_cmd() { $DB_EXEC psql "${TARGET[@]}" "$@"; }
 
 existing=$(psql_cmd -At -c "SELECT (SELECT COUNT(*) FROM companies) + (SELECT COUNT(*) FROM financial_facts) + (SELECT COUNT(*) FROM doc_chunks)")
 if [ "$existing" != "0" ]; then

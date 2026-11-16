@@ -18,7 +18,13 @@ def safe(text: str) -> str:
     """Streamlit treats $...$ as a maths formula, which would garble 'revenue was $114.5 billion and $110 billion'."""
     return text.replace("$", "\\$")
 
-
+def current_visitor() -> str | None:
+    """The visitor's address as the hosting proxy saw it, when there is one (not when running locally)."""
+    try:
+        return api_client.visitor_from_headers(st.context.headers)
+    except Exception:       # an older Streamlit, or no request context
+        return None
+    
 def render_source(source: dict) -> None:
     tag = source["tag"]
     if source["type"] == "sql":
@@ -96,7 +102,7 @@ if question:
     with st.chat_message("assistant"):
         with st.spinner("Searching the data and the filings. This takes 10 to 30 seconds."):
             try:
-                reply = {"role": "assistant", "payload": api_client.ask(question)}
+                reply = {"role": "assistant", "payload": api_client.ask(question, visitor=current_visitor())}
             except api_client.ApiProblem as problem:
                 reply = {"role": "assistant", "problem": problem.message, "level": problem.level}
         render_body(reply)                       # same bubble as the spinner, so no empty bubble is left behind
