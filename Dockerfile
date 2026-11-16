@@ -27,4 +27,4 @@ RUN useradd --create-home app
 USER app
 
 EXPOSE 8000 8501
-CMD ["uvicorn", "sec_copilot.api.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "exec uvicorn sec_copilot.api.app:app --host 0.0.0.0 --port ${PORT:-8000}"]

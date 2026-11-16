@@ -150,7 +150,7 @@ def test_the_report_says_what_changed_and_what_did_not():
                             FilingsResult(updated=[("AAPL", "0000320193-26-000123", 108)], unreadable=["INTC"]))
     text_report = "\n".join(changed)
     assert "AAPL  2026-06-27 -> 2026-09-26" in text_report and "failed: IBM" in text_report
-    assert "loaded 0000320193-26-000123, removed 108 chunks" in text_report and "old text kept): INTC" in text_report
+    assert "loaded 0000320193-26-000123, removed 108 chunks" in text_report and "left untouched): INTC" in text_report
     quiet = "\n".join(format_report(FactsResult(), FilingsResult()))
     assert "no new quarters" in quiet and "no new 10-K filings" in quiet
     assert format_report(None, None) == []

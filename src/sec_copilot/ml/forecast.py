@@ -1,5 +1,10 @@
-"""Forecast a company's next-quarter revenue with the best backtested model, plus a range from its past errors."""
+"""Forecast a company's next-quarter revenue with the best backtested model, plus a range from its past errors.
+
+Computing a forecast needs pandas and statsmodels, which are heavy. So forecasts are computed ahead of time
+(`python -m sec_copilot.ml.forecast`) and the web API serves the stored results (see stored.py).
+"""
 import json
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -9,15 +14,9 @@ from sec_copilot.ml.backtest import RESULT_FILE
 from sec_copilot.ml.data import load_revenue_panel
 from sec_copilot.ml.features import FEATURES, QUARTER_DAYS, make_features, with_next_quarter
 from sec_copilot.ml.models import MODELS
+from sec_copilot.ml.stored import FORECASTS_FILE, ForecastUnavailable, format_money
 
 MIN_RANGE_SCALE, MAX_RANGE_SCALE = 0.5, 4.0     # how far a company's range may differ from the average one
-
-class ForecastUnavailable(ValueError):
-    """The question can't be answered (unknown company, too little history). The message is meant to be read."""
-
-
-def format_money(value: float) -> str:
-    return f"${value / 1e9:.1f} billion" if value >= 1e9 else f"${value / 1e6:.0f} million"
 
 
 def forecast_next_quarter(panel: pd.DataFrame, ticker: str, backtest: dict) -> dict:
@@ -61,8 +60,9 @@ def forecast_next_quarter(panel: pd.DataFrame, ticker: str, backtest: dict) -> d
         result["company_backtest_mape_percent"] = round(company_error * 100, 1)
     return result
 
+
 class RevenueForecaster:
-    """Callable used by the agent: loads the revenue history and the backtest results once, then answers per ticker."""
+    """Computes a forecast live: loads the revenue history and backtest results once, then answers per ticker."""
 
     def __init__(self, engine, backtest_path: Path = RESULT_FILE):
         self._engine = engine
@@ -78,3 +78,37 @@ class RevenueForecaster:
         if self._panel is None:
             self._panel = load_revenue_panel(self._engine)
         return forecast_next_quarter(self._panel, ticker.upper(), self._backtest)
+
+
+def forecast_all(panel: pd.DataFrame, backtest: dict) -> dict[str, dict]:
+    """One forecast per company, ready to be stored."""
+    return {ticker: forecast_next_quarter(panel, ticker, backtest) for ticker in sorted(panel["ticker"].unique())}
+
+
+def save_forecasts(forecasts: dict[str, dict], data_through, path: Path | str | None = None) -> Path:
+    path = Path(path or FORECASTS_FILE)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"generated_at": datetime.now().isoformat(timespec="seconds"), "data_through": str(data_through),
+               "forecasts": forecasts}
+    path.write_text(json.dumps(payload, indent=2))
+    return path
+
+
+def main() -> None:
+    from sqlalchemy import create_engine
+
+    from sec_copilot.config import READONLY_DATABASE_URL
+
+    if not RESULT_FILE.exists():
+        raise SystemExit("Run the backtest first: uv run python -m sec_copilot.ml.backtest")
+    panel = load_revenue_panel(create_engine(READONLY_DATABASE_URL))
+    forecasts = forecast_all(panel, json.loads(RESULT_FILE.read_text()))
+    path = save_forecasts(forecasts, panel["period_end"].max().date())
+    print(f"Forecasts for {len(forecasts)} companies (data through {panel['period_end'].max().date()}), saved to {path}\n")
+    for ticker, f in forecasts.items():
+        print(f"  {ticker:<5} quarter ending about {f['forecast_quarter_end_approx']}  {format_money(f['forecast_revenue']):>16}"
+              f"   range {format_money(f['range_low'])} to {format_money(f['range_high'])}")
+
+
+if __name__ == "__main__":
+    main()

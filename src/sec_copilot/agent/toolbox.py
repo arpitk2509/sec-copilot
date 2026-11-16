@@ -105,13 +105,13 @@ class Toolbox:
                 "row_count": len(rows), "truncated": len(rows) > len(shown)}
 
     def _forecast_revenue(self, ticker: str) -> dict:
-        from sec_copilot.ml.forecast import ForecastUnavailable, RevenueForecaster    # imported late: it loads the ML libraries
+        from sec_copilot.ml.stored import ForecastUnavailable, StoredForecaster    # light: no pandas or scikit-learn
 
         ticker = ticker.strip().upper()
         if not ticker:
             return {"error": "ticker is required."}
         if self._forecaster is None:
-            self._forecaster = RevenueForecaster(self.readonly_engine)
+            self._forecaster = StoredForecaster(self.readonly_engine)
         try:
             result = self._forecaster(ticker)
         except ForecastUnavailable as error:

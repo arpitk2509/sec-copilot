@@ -34,12 +34,12 @@ def build_default_service() -> AskService:
     from sec_copilot.agent.agent import answer_question
     from sec_copilot.agent.toolbox import Toolbox
     from sec_copilot.llm.client import Gemini, LLMUnavailable
-    from sec_copilot.ml.forecast import RevenueForecaster
+    from sec_copilot.ml.stored import StoredForecaster
     from sec_copilot.rag.embeddings import GeminiEmbedder
 
     engine = create_engine(config.DATABASE_URL, pool_pre_ping=True)
     readonly = create_engine(config.READONLY_DATABASE_URL, pool_pre_ping=True)
-    gemini, embedder, forecaster = Gemini(), GeminiEmbedder(), RevenueForecaster(readonly)
+    gemini, embedder, forecaster = Gemini(), GeminiEmbedder(), StoredForecaster(readonly)
 
     def run_agent(question: str):
         try:

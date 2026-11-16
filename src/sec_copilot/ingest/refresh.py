@@ -104,8 +104,7 @@ def format_report(facts: FactsResult | None, filings: FilingsResult | None) -> l
         if not filings.updated:
             lines.append("  no new 10-K filings")
         if filings.unreadable:
-            lines.append(f"  new 10-K but sections could not be extracted (old text kept): {', '.join(filings.unreadable)}")
-        if filings.failures:
+            lines.append(f"  new 10-K could not be parsed, so nothing was loaded (existing text, if any, was left untouched): {', '.join(filings.unreadable)}")
             lines.append(f"  failed: {', '.join(filings.failures)}")
     return lines
 
@@ -134,6 +133,7 @@ def main() -> None:
         print("  uv run python -m sec_copilot.rag.embed_chunks      (embed the new filing text)")
     if facts and facts.changes:
         print("  uv run python -m sec_copilot.ml.backtest           (re-run the forecast backtest on the new quarters)")
+        print("  uv run python -m sec_copilot.ml.forecast           (regenerate the stored forecasts the API serves)")
         print("  uv run python -m sec_copilot.eval.run_eval         (check that the golden questions still hold)")
     print("  docker compose up -d --build                        (the image contains the saved backtest results)")
 
