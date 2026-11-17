@@ -213,7 +213,12 @@ def test_visitors_behind_our_chat_page_get_their_own_allowance(monkeypatch):
 def test_service_errors_carry_their_status():
     assert InvalidQuestion("x").status_code == 422 and Busy("x").status_code == 503
 
-
+def test_the_hosts_health_check_is_instant_and_never_builds_the_service():
+    built = []
+    client = TestClient(create_app(lambda: built.append(1) or make_service()))
+    response = client.get("/healthz")
+    assert response.status_code == 200 and response.json() == {"status": "ok"} and built == []
+    
 def test_the_bare_address_sends_visitors_to_the_documentation():
     response = api(make_service()).get("/", follow_redirects=False)
     assert response.status_code in (302, 307) and response.headers["location"] == "/docs"

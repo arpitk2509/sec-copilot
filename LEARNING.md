@@ -47,3 +47,4 @@ When a model breaks a rule one run in four, move the guardrail into code.
 Record what a guardrail removed, so you can still measure the model’s behaviour.
 a local variable can hide an imported name (here a module), so linters flag it, and a rehearsal in a fresh clone is slow the first time because libraries compile on first import, so wait for it.
 a restore is only trusted once a checksum of every row matches; running a script for real finds bugs that reading it doesn’t; delete old data only after the new data has loaded; and a test dataset can silently be degenerate (my random vectors were all identical).
+a header a client controls can be forged, so trust the part your own infrastructure added; a public service needs a real secret, not the development default; and a failing path (re-running init) must stop at the first error and change nothing.

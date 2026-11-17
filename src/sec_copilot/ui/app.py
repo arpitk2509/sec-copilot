@@ -80,7 +80,7 @@ with st.sidebar:
     if info:
         st.caption(f"Data as of {info['data_as_of']} · model {info['model']} · {info['questions_left_today']} questions left today")
     else:
-        st.caption("The API is not reachable right now.")
+        st.caption("The API is not reachable right now. If it was idle it may be waking up, which takes about a minute.")
     st.header("Try one")
     for example in EXAMPLES:
         if st.button(example, key=example):

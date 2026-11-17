@@ -39,9 +39,12 @@ def build_default_service() -> AskService:
     from sec_copilot.ml.stored import StoredForecaster
     from sec_copilot.rag.embeddings import GeminiEmbedder
 
-    wake_up = {"connect_timeout": 30}                 # a free hosted database may be asleep and need a few seconds
-    engine = create_engine(config.DATABASE_URL, pool_pre_ping=True, connect_args=wake_up)
-    readonly = create_engine(config.READONLY_DATABASE_URL, pool_pre_ping=True, connect_args=wake_up)
+    cloud_friendly = {
+        "connect_timeout": 30,        # a free hosted database may be asleep and need a few seconds to wake
+        "prepare_threshold": None,    # a pooled connection (Neon) cannot keep prepared statements between calls
+    }
+    engine = create_engine(config.DATABASE_URL, pool_pre_ping=True, connect_args=cloud_friendly)
+    readonly = create_engine(config.READONLY_DATABASE_URL, pool_pre_ping=True, connect_args=cloud_friendly)
     gemini, embedder, forecaster = Gemini(), GeminiEmbedder(), StoredForecaster(readonly)
 
     def run_agent(question: str):
@@ -100,6 +103,10 @@ def create_app(service_factory=build_default_service) -> FastAPI:
         except Exception:
             logger.exception("Unexpected error while answering")
             raise HTTPException(status_code=500, detail="Something went wrong on our side. Please try again.") from None
+
+    @app.get("/healthz", include_in_schema=False)
+    def healthz():
+        return {"status": "ok"}              # instant and shallow: for the host's health check, which allows only 5 seconds
 
     @app.get("/health")
     def health():

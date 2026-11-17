@@ -20,6 +20,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 # 2. Then the code, and the one data file the forecaster reads at run time.
 COPY src ./src
 COPY models ./models
+COPY scripts/start.sh ./start.sh
 RUN uv sync --frozen --no-dev
 
 # Run as an ordinary user, not root.
@@ -27,4 +28,4 @@ RUN useradd --create-home app
 USER app
 
 EXPOSE 8000 8501
-CMD ["sh", "-c", "exec uvicorn sec_copilot.api.app:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "start.sh"]

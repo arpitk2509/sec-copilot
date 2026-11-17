@@ -4,7 +4,7 @@
 # Usage: DB_URL='postgresql://...' RO_PASSWORD='...' scripts/init_remote_db.sh
 set -euo pipefail
 
-: "${DB_URL:?Set DB_URL to the database connection string (the direct one, not the pooled one)}"
+: "${DB_URL:?Set DB_URL to the database connection string (the pooled one that Neon shows by default is fine)}"
 : "${RO_PASSWORD:?Set RO_PASSWORD to the password the read-only role should get}"
 DB_EXEC="${DB_EXEC-docker compose exec -T db}"
 
