@@ -12,7 +12,13 @@ fi
 DB_EXEC="${DB_EXEC-docker compose exec -T db}"
 DB_USER="${POSTGRES_USER:-postgres}"
 DB_NAME="${POSTGRES_DB:-sec_copilot}"
-if [ -n "${DB_URL:-}" ]; then TARGET=(-d "$DB_URL"); else TARGET=(-U "$DB_USER" -d "$DB_NAME"); fi
+if [ "${DB_URL+set}" = "set" ]; then
+  # DB_URL was given. If it is empty (for example from an unset variable), stop instead of quietly using the LOCAL database.
+  [ -n "$DB_URL" ] || { echo "DB_URL is set but empty, so nothing was done. Check the variable you passed." >&2; exit 2; }
+  TARGET=(-d "$DB_URL")
+else
+  TARGET=(-U "$DB_USER" -d "$DB_NAME")
+fi
 psql_cmd() { $DB_EXEC psql "${TARGET[@]}" "$@"; }
 
 existing=$(psql_cmd -At -c "SELECT (SELECT COUNT(*) FROM companies) + (SELECT COUNT(*) FROM financial_facts) + (SELECT COUNT(*) FROM doc_chunks)")
