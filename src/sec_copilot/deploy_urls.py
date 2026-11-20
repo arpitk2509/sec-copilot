@@ -83,7 +83,8 @@ def check(neon_url: str, password: str, log=print) -> bool:
         scalar(readonly, "SELECT 1")
     except Exception as error:
         report(False, "could not log in as copilot_readonly", short(error))
-        log("This is usually the wrong RO_PASSWORD: it must be the one you gave to scripts/init_remote_db.sh.")
+        log("Either RO_PASSWORD differs from the one given to scripts/init_remote_db.sh, or the role was never created.")
+        log("To create it: DB_URL=... RO_PASSWORD=... scripts/init_remote_db.sh --role-only")
         return False
     report(scalar(readonly, "SELECT COUNT(*) FROM v_quarterly_metrics") > 0, "can read the metrics view",
            f"latest quarter {scalar(readonly, 'SELECT MAX(period_end) FROM v_quarterly_metrics')}")

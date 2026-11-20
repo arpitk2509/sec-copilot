@@ -28,7 +28,25 @@ if [ "$existing" != "0" ]; then
   exit 1
 fi
 
-gunzip -c "$1" | psql_cmd -v ON_ERROR_STOP=1 -q -o /dev/null
+gunzip -t "$1" || { echo "The snapshot file is damaged (it failed gunzip's integrity check). Nothing was changed." >&2; exit 1; }
+
+# Loading rows into a vector index one at a time is slow, and a small cloud database can drop the connection while
+# it works. So: take the vector indexes away, load everything, rebuild them once, all in ONE transaction.
+# If anything goes wrong, nothing at all is kept and the database is exactly as empty as before.
+hnsw="schemaname = 'public' AND indexdef LIKE '%USING hnsw%'"
+index_names=$(psql_cmd -At -c "SELECT indexname FROM pg_indexes WHERE $hnsw")
+index_defs=$(psql_cmd -At -c "SELECT indexdef FROM pg_indexes WHERE $hnsw")
+echo "Loading (all-or-nothing, so stopping with Ctrl-C is safe). This can take a few minutes..."
+trap 'echo "The load failed after ${SECONDS} seconds. Nothing was kept: the database is as empty as before, so you can simply try again." >&2' ERR
+{
+  for name in $index_names; do echo "DROP INDEX public.\"$name\";"; done
+  gunzip -c "$1"
+  echo "SET search_path = public;"      # the dump empties it, and the index definitions below need to find vector_cosine_ops
+  while IFS= read -r definition; do
+    if [ -n "$definition" ]; then echo "$definition;"; fi
+  done <<< "$index_defs"
+} | psql_cmd -v ON_ERROR_STOP=1 -q -1 -o /dev/null
+trap - ERR
 
 # A data-only load does not move the id counters, so move them past the loaded rows.
 psql_cmd -q -c "
